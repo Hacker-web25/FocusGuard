@@ -32,12 +32,12 @@ import kotlinx.coroutines.withContext
 /**
  * Guards Instagram.
  *
- * Two signals decide what's on top:
- *  - Fast path: Instagram's own window-state event locks immediately, before
- *    the window list has caught up, so reels get as little screen and audio
- *    time as possible.
- *  - Window list: the top-most *application* window (ignoring the keyboard,
- *    system UI and our overlay) confirms or corrects it, and detects leaving.
+ * One source of truth decides what's on top: the window list, i.e. the
+ * top-most *application* window (ignoring the keyboard, system UI and our
+ * overlay). Instagram's own window event is only used to (a) mute its audio
+ * instantly and (b) re-read the window list a few times while it catches up.
+ * It never opens or closes the lock by itself; doing that made the pause
+ * flicker open/shut while Instagram was cold-starting.
  *
  * It also blocks the settings screens that would switch FocusGuard off
  * ([TamperRules]); content events for that are only subscribed while one of
@@ -55,12 +55,15 @@ class AppDetectorService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private var fastTargetAt = 0L
+    private var lastShowAt = 0L
+    private var pendingLeaveSince = 0L
     private var contentEventsOn = false
     private var lastTamperCheckAt = 0L
     private var lastTamperBlockAt = 0L
 
     private val recheck = Runnable { evaluateForeground() }
+    private val recheckLate = Runnable { evaluateForeground() }
+    private val audioRelease = Runnable { if (!overlay.isShowing) audio.restore() }
     private val tamperRecheck = Runnable { maybeCheckTamper(null) }
 
     override fun onServiceConnected() {
@@ -88,11 +91,8 @@ class AppDetectorService : AccessibilityService() {
 
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                if (pkg != null && pkg in repo.monitoredApps) {
-                    onTargetWindowEvent()
-                } else {
-                    evaluateForeground()
-                }
+                if (pkg != null && pkg in repo.monitoredApps) onTargetWindowEvent()
+                evaluateForeground()
                 scheduleTamperChecks(pkg)
             }
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
@@ -105,39 +105,57 @@ class AppDetectorService : AccessibilityService() {
 
     // ── Foreground detection ────────────────────────────────────
 
-    /** Instagram reported a new window: lock now, confirm with the window list shortly. */
+    /**
+     * Instagram announced a window. Silence its audio right away (the window
+     * list may lag a few frames) and re-read the list shortly after so the lock
+     * lands as soon as Android reports Instagram on top. If the lock never
+     * comes (e.g. an unlocked session), audio is handed back after 2s.
+     */
     private fun onTargetWindowEvent() {
-        fastTargetAt = SystemClock.elapsedRealtime()
-        applyDecision(
-            engine.onForeground(
-                isTarget = true,
-                baseSeconds = repo.timerDurationSec,
-                nowElapsed = fastTargetAt,
-                nowWall = System.currentTimeMillis()
-            )
-        )
+        if (!overlay.isShowing && !engine.unlocked) {
+            audio.silence()
+            handler.removeCallbacks(audioRelease)
+            handler.postDelayed(audioRelease, 2000)
+        }
         handler.removeCallbacks(recheck)
-        handler.postDelayed(recheck, FAST_GUARD_MS + 60)
+        handler.removeCallbacks(recheckLate)
+        handler.postDelayed(recheck, 90)
+        handler.postDelayed(recheckLate, 300)
     }
 
     private fun evaluateForeground() {
         val pkg = topAppPackage() ?: return
         setContentEvents(pkg in TamperRules.WATCHED_PACKAGES)
 
+        val now = SystemClock.elapsedRealtime()
         val isTarget = pkg in repo.monitoredApps
-        // Right after Instagram's own event the window list can still show the
-        // previous app. Don't let that stale view unlock it; the delayed
-        // recheck will settle it.
-        if (!isTarget && SystemClock.elapsedRealtime() - fastTargetAt < FAST_GUARD_MS) return
 
-        applyDecision(
-            engine.onForeground(
-                isTarget = isTarget,
-                baseSeconds = repo.timerDurationSec,
-                nowElapsed = SystemClock.elapsedRealtime(),
-                nowWall = System.currentTimeMillis()
-            )
+        if (isTarget) {
+            pendingLeaveSince = 0L
+        } else if (overlay.isShowing && now - lastShowAt < SETTLE_MS) {
+            // Just locked: while Instagram is still starting, the list can blip
+            // back to the previous app for a moment. Only believe "left" once it
+            // has held for CONFIRM_LEAVE_MS; a real Home/Recents easily does.
+            if (pendingLeaveSince == 0L) pendingLeaveSince = now
+            if (now - pendingLeaveSince < CONFIRM_LEAVE_MS) {
+                handler.removeCallbacks(recheck)
+                handler.postDelayed(recheck, CONFIRM_LEAVE_MS + 20)
+                Log.d(TAG, "Holding lock: list says $pkg ${now - lastShowAt}ms after locking")
+                return
+            }
+        }
+
+        val decision = engine.onForeground(
+            isTarget = isTarget,
+            baseSeconds = repo.timerDurationSec,
+            nowElapsed = now,
+            nowWall = System.currentTimeMillis()
         )
+        if (decision != GuardEngine.Decision.None) {
+            Log.i(TAG, "top=$pkg target=$isTarget -> ${decision.javaClass.simpleName}")
+        }
+        if (!isTarget) pendingLeaveSince = 0L
+        applyDecision(decision)
     }
 
     /**
@@ -165,6 +183,8 @@ class AppDetectorService : AccessibilityService() {
             is GuardEngine.Decision.Show -> {
                 // Silence first: this is the part the user hears.
                 audio.silence()
+                handler.removeCallbacks(audioRelease)
+                lastShowAt = SystemClock.elapsedRealtime()
                 store.recordOpen()
                 overlay.show(
                     totalSeconds = decision.totalSeconds,
@@ -337,8 +357,10 @@ class AppDetectorService : AccessibilityService() {
     companion object {
         private const val TAG = "AppDetector"
 
-        /** How long a fast-path lock ignores a stale "something else is on top". */
-        private const val FAST_GUARD_MS = 700L
+        /** Window after locking during which a "left Instagram" reading must persist. */
+        private const val SETTLE_MS = 2_500L
+        /** How long that reading must hold before the pause closes. */
+        private const val CONFIRM_LEAVE_MS = 350L
 
         private const val BASE_EVENTS =
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or AccessibilityEvent.TYPE_WINDOWS_CHANGED
