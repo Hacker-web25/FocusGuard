@@ -87,6 +87,7 @@ import com.dhruv.focusguard.data.model.Goal
 import com.dhruv.focusguard.data.model.Priority
 import com.dhruv.focusguard.data.model.Task
 import com.dhruv.focusguard.guard.Haptics
+import com.dhruv.focusguard.ui.plant.GoalPlant
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -1024,7 +1025,12 @@ fun GoalCard(goal: Goal, nextStep: String?, now: Long, haptics: Haptics, onOpen:
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(timeLeftLabel(goal.targetDate, now), style = BaseText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = P.GoalGreen)
                     Text("  •  ", style = BaseText, fontSize = 13.sp, color = P.Faint)
-                    Text("${goal.progress}% complete", style = BaseText, fontSize = 13.sp, color = P.GoalGrey)
+                    Text(
+                        if (goal.progress >= 100) "In full bloom 🌸" else "${goal.progress}% complete",
+                        style = BaseText, fontSize = 13.sp,
+                        fontWeight = if (goal.progress >= 100) FontWeight.Bold else FontWeight.Normal,
+                        color = if (goal.progress >= 100) Color(0xFFD94C86) else P.GoalGrey
+                    )
                 }
                 Box(
                     Modifier
@@ -1052,11 +1058,13 @@ fun GoalCard(goal: Goal, nextStep: String?, now: Long, haptics: Haptics, onOpen:
                     .fillMaxHeight()
             ) {
                 Canvas(Modifier.fillMaxSize()) { goalScene() }
-                Text(
-                    emoji, fontSize = 50.sp,
+                // The goal's plant: grows as the goal moves, blooms at 100%.
+                GoalPlant(
+                    progress = goal.progress,
+                    haptics = haptics,
                     modifier = Modifier
-                        .align(Alignment.Center)
-                        .offset(x = 8.dp, y = 6.dp)
+                        .fillMaxSize()
+                        .padding(start = 16.dp, top = 4.dp)
                 )
                 // Blend the scene into the card on its left edge
                 Box(

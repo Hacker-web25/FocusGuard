@@ -52,7 +52,8 @@ class LockOverlay(
         userName: String,
         opensToday: Int,
         walkAwaysToday: Int,
-        streak: Int
+        streak: Int,
+        intentCounts: Map<String, Int> = emptyMap()
     ) {
         hide()
 
@@ -66,6 +67,7 @@ class LockOverlay(
             this.opensToday = opensToday
             this.walkAwaysToday = walkAwaysToday
             this.streak = streak
+            this.intentCounts = intentCounts
         }
 
         val lifecycleOwner = OverlayLifecycleOwner().also { it.start() }

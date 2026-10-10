@@ -23,6 +23,7 @@ import com.dhruv.focusguard.guard.TamperRules
 import com.dhruv.focusguard.guard.Watchdog
 import com.dhruv.focusguard.guard.overlay.BackdropCache
 import com.dhruv.focusguard.guard.overlay.PauseActions
+import com.dhruv.focusguard.widget.TaskWidget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -201,7 +202,8 @@ class AppDetectorService : AccessibilityService() {
                     userName = repo.userName,
                     opensToday = store.opensToday,
                     walkAwaysToday = store.walkAwaysToday,
-                    streak = store.streakDays()
+                    streak = store.streakDays(),
+                    intentCounts = store.intentCountsToday()
                 )
                 loadOverlayContent()
                 Log.i(TAG, "Locked: ${decision.totalSeconds}s (strikes=${decision.strikes})")
@@ -235,6 +237,7 @@ class AppDetectorService : AccessibilityService() {
         override fun walkAway(): Int {
             engine.onDiverted()
             store.recordWalkAway()
+            TaskWidget.refreshAll(this@AppDetectorService) // streak on the widget
             return store.walkAwaysToday
         }
 
@@ -266,6 +269,26 @@ class AppDetectorService : AccessibilityService() {
                 )
             } catch (e: Exception) {
                 Log.w(TAG, "Could not open FocusGuard", e)
+            }
+        }
+
+        override fun recordIntent(reason: String): Int = store.recordIntent(reason)
+
+        override fun openMusic(pkg: String?): Boolean {
+            val intent = (pkg?.let { packageManager.getLaunchIntentForPackage(it) }
+                ?: Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MUSIC))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            return try {
+                // The music app comes up over Instagram while the pause still
+                // covers it; then the pause fades away over the music app.
+                startActivity(intent)
+                engine.onCloseTarget(SystemClock.elapsedRealtime())
+                handler.removeCallbacks(closeHide)
+                handler.postDelayed(closeHide, 450)
+                true
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not open a music app ($pkg)", e)
+                false
             }
         }
 

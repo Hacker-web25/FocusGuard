@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import com.dhruv.focusguard.data.repository.TaskRepository
+import com.dhruv.focusguard.widget.TaskWidget
 
 class FocusGuardApp : Application() {
 
@@ -14,6 +15,8 @@ class FocusGuardApp : Application() {
         super.onCreate()
         repository = TaskRepository(this)
         createNotificationChannel()
+        // Keep the home-screen widget in step with every task change.
+        TaskWidget.observe(this)
     }
 
     private fun createNotificationChannel() {

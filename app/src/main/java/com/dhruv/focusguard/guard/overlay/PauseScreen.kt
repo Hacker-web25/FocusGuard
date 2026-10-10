@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.dhruv.focusguard.data.model.Goal
 import com.dhruv.focusguard.data.model.Task
+import com.dhruv.focusguard.data.repository.TaskRepository
 import com.dhruv.focusguard.guard.Haptics
 import kotlinx.coroutines.delay
 import java.util.Calendar
@@ -71,6 +72,10 @@ class PauseState {
     var focusTask by mutableStateOf<Task?>(null)
     var celebrateTitle by mutableStateOf("")
     var celebrateBody by mutableStateOf("")
+    /** The "what brought you here?" sheet: asking, showing music apps, or answered. */
+    var intentStage by mutableStateOf(IntentStage.Asking)
+    /** Today's answers so far, by [Reason.key]. */
+    var intentCounts by mutableStateOf<Map<String, Int>>(emptyMap())
 }
 
 /** What the pause screen asks the service to do. All calls are on the main thread. */
@@ -95,9 +100,17 @@ interface PauseActions {
     fun addTask()
     /** Open FocusGuard (settings = jump to Settings). */
     fun openApp(settings: Boolean)
+    /** Count today's answer to "what brought you here?". Returns today's count for it, including this one. */
+    fun recordIntent(reason: String): Int
+    /**
+     * Leave Instagram for a music app ([pkg], or the phone's default music
+     * player when null). Returns false if nothing could be opened.
+     */
+    fun openMusic(pkg: String?): Boolean
 }
 
 const val TARGET_PACKAGE = "com.instagram.android"
+private const val NO_GOAL = Long.MIN_VALUE
 
 // ═════════════════════════════════════════════════════════════════
 //  Root
@@ -150,6 +163,17 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
             state.mode = mode
         }
 
+        // Ticking a task off here also waters its goal's plant right away,
+        // matching what the database does (+5%).
+        fun completeHere(task: Task) {
+            actions.completeTask(task)
+            state.tasks = state.tasks.filterNot { it.id == task.id }
+            val gid = task.goalId ?: return
+            state.goals = state.goals.map {
+                if (it.id == gid) it.copy(progress = (it.progress + TaskRepository.GOAL_STEP_PER_TASK).coerceAtMost(100)) else it
+            }
+        }
+
         CompositionLocalProvider(
             LocalBackdrop provides backdrop,
             LocalScreenSize provides screen,
@@ -165,7 +189,8 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
 
                 Crossfade(targetState = state.mode, animationSpec = tween(420), label = "mode") { mode ->
                     when (mode) {
-                        PauseMode.Pause -> PauseHome(
+                        PauseMode.Pause -> Box(Modifier.fillMaxSize()) {
+                          PauseHome(
                             state = state,
                             remainingMs = remainingMs,
                             appIcon = appIcon,
@@ -179,10 +204,7 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
                                 divert(PauseMode.TinyWin)
                             },
                             onJustBe = { divert(PauseMode.JustBe) },
-                            onComplete = { task ->
-                                actions.completeTask(task)
-                                state.tasks = state.tasks.filterNot { it.id == task.id }
-                            },
+                            onComplete = { task -> completeHere(task) },
                             onAddTask = {
                                 actions.diverted()
                                 actions.addTask()
@@ -191,7 +213,46 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
                                 actions.diverted()
                                 actions.openApp(settings)
                             }
-                        )
+                          )
+                          IntentLayer(
+                            state = state,
+                            haptics = haptics,
+                            onPick = { reason ->
+                                state.intentCounts = state.intentCounts + (reason.key to actions.recordIntent(reason.key))
+                                when (reason) {
+                                    Reason.LongDay -> { state.intentStage = IntentStage.Music }
+                                    Reason.Bored -> {
+                                        state.intentStage = IntentStage.Done
+                                        divert(PauseMode.Breathe)
+                                    }
+                                    Reason.Avoiding -> {
+                                        state.intentStage = IntentStage.Done
+                                        state.focusTask = byUrgency(state.tasks).firstOrNull()
+                                        divert(PauseMode.TinyWin)
+                                    }
+                                    Reason.Specific -> { state.intentStage = IntentStage.Done }
+                                }
+                            },
+                            onMusic = { pkg ->
+                                haptics.success()
+                                actions.walkAway()
+                                if (!actions.openMusic(pkg)) {
+                                    // No music app would open: breathe instead.
+                                    state.intentStage = IntentStage.Done
+                                    divert(PauseMode.Breathe)
+                                }
+                            },
+                            onBreathe = {
+                                state.intentStage = IntentStage.Done
+                                divert(PauseMode.Breathe)
+                            },
+                            onBack = { state.intentStage = IntentStage.Asking },
+                            onWalkAway = {
+                                state.intentStage = IntentStage.Done
+                                walkAway()
+                            }
+                          )
+                        }
 
                         PauseMode.CalmOrb -> CalmOrbMode(
                             name = state.userName,
@@ -211,8 +272,7 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
                             haptics = haptics,
                             onComplete = { task, minutes ->
                                 actions.recordFocus(minutes)
-                                actions.completeTask(task)
-                                state.tasks = state.tasks.filterNot { it.id == task.id }
+                                completeHere(task)
                                 walkAway("Done. ✨")
                                 state.celebrateBody = "“${task.title}” is off your list. That beat any reel."
                             },
@@ -266,7 +326,14 @@ private fun PauseHome(
     val now = rememberNow()
     val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
     val sorted = remember(state.tasks) { byUrgency(state.tasks) }
-    val goal = remember(state.goals) { state.goals.filter { it.progress < 100 }.minByOrNull { it.progress } }
+    // Pick the goal once (the one furthest from done) and stick with it, so
+    // when a task waters it you watch that plant grow rather than the card
+    // jumping to a different goal.
+    val picked = remember { LongArray(1) { NO_GOAL } }   // plain memo, not state: no recomposition loop
+    if (state.goals.none { it.id == picked[0] }) {
+        picked[0] = state.goals.filter { it.progress < 100 }.minByOrNull { it.progress }?.id ?: NO_GOAL
+    }
+    val goal = state.goals.firstOrNull { it.id == picked[0] }
     val nextStep = remember(goal, state.tasks) {
         goal?.let { g -> byUrgency(state.tasks.filter { it.goalId == g.id }).firstOrNull()?.title }
             ?: goal?.description?.takeIf { it.isNotBlank() }

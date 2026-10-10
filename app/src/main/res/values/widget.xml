@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home-screen widget. Night versions live in values-night/widget.xml;
+         the launcher picks them up itself when the phone goes dark. -->
+    <color name="widget_bg">#F5FFFBF8</color>
+    <color name="widget_stroke">#1A1C1A3A</color>
+    <color name="widget_text">#FF1C1A3A</color>
+    <color name="widget_sub">#FF6B6383</color>
+    <color name="widget_faint">#FF9A93AE</color>
+    <color name="widget_ring">#FFB4ACC8</color>
+    <color name="widget_urgent">#FFE2304F</color>
+    <color name="widget_urgent_soft">#FFFFE1E6</color>
+    <color name="widget_done">#FF3DB389</color>
+    <color name="widget_chip_bg">#FFEDE8F6</color>
+    <color name="widget_chip_ink">#FF625B7A</color>
+    <color name="widget_accent">#FF6941EA</color>
+
+    <dimen name="widget_radius">24dp</dimen>
+    <dimen name="widget_row_height">34dp</dimen>
+
+    <style name="WidgetTitle">
+        <item name="android:textColor">@color/widget_text</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <style name="WidgetDate">
+        <item name="android:textColor">@color/widget_faint</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <style name="WidgetSub">
+        <item name="android:textColor">@color/widget_sub</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="WidgetRowTitle">
+        <item name="android:textColor">@color/widget_text</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:paddingEnd">6dp</item>
+    </style>
+
+    <style name="WidgetRowTitleUrgent" parent="WidgetRowTitle">
+        <item name="android:textColor">@color/widget_urgent</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="WidgetRowTitleDone" parent="WidgetRowTitle">
+        <item name="android:textColor">@color/widget_faint</item>
+    </style>
+
+    <style name="WidgetChip">
+        <item name="android:background">@drawable/widget_chip_bg</item>
+        <item name="android:textColor">@color/widget_chip_ink</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:paddingTop">2dp</item>
+        <item name="android:paddingBottom">2dp</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <style name="WidgetChipUrgent" parent="WidgetChip">
+        <item name="android:background">@drawable/widget_chip_urgent_bg</item>
+        <item name="android:textColor">@color/widget_urgent</item>
+    </style>
+
+    <style name="WidgetMore">
+        <item name="android:textColor">@color/widget_accent</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:gravity">end</item>
+        <item name="android:paddingTop">2dp</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <style name="WidgetEmptyTitle">
+        <item name="android:textColor">@color/widget_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="WidgetCount">
+        <item name="android:textColor">@color/widget_accent</item>
+        <item name="android:textSize">26sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+    </style>
+</resources>

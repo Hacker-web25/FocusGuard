@@ -84,6 +84,36 @@ class PrefsGuardStore(context: Context) : GuardStore {
         return n
     }
 
+    // ── "What brought you here?" answers, counted per day ───────
+
+    fun intentCountsToday(): Map<String, Int> {
+        if (prefs.getString(KEY_INTENT_DAY, "") != todayKey()) return emptyMap()
+        return parseCounts(prefs.getString(KEY_INTENTS, "") ?: "")
+    }
+
+    /** Count one answer; returns today's total for that answer. */
+    fun recordIntent(reason: String): Int {
+        val counts = intentCountsToday().toMutableMap()
+        val n = (counts[reason] ?: 0) + 1
+        counts[reason] = n
+        prefs.edit()
+            .putString(KEY_INTENT_DAY, todayKey())
+            .putString(KEY_INTENTS, counts.entries.joinToString(",") { "${it.key}:${it.value}" })
+            .apply()
+        return n
+    }
+
+    private fun parseCounts(raw: String): Map<String, Int> {
+        val out = HashMap<String, Int>()
+        for (entry in raw.split(',')) {
+            val i = entry.lastIndexOf(':')
+            if (i <= 0) continue
+            val n = entry.substring(i + 1).toIntOrNull() ?: continue
+            out[entry.substring(0, i)] = n
+        }
+        return out
+    }
+
     private fun markWalkDay() {
         val fmt = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
         val cutoff = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_YEAR, -90) }
@@ -129,6 +159,8 @@ class PrefsGuardStore(context: Context) : GuardStore {
         private const val KEY_FOCUS_MIN = "stats_focus_min"
         private const val KEY_WALK_DAYS = "walk_days"
         private const val KEY_AUTOSTART_OK = "autostart_confirmed"
+        private const val KEY_INTENT_DAY = "intent_day"
+        private const val KEY_INTENTS = "intent_counts"
 
         /** How long a maintenance unlock lasts. */
         const val TAMPER_UNLOCK_MS = 5 * 60_000L

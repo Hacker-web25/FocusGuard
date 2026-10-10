@@ -2,4 +2,13 @@
 <resources>
     <string name="app_name">FocusGuard</string>
     <string name="accessibility_description">FocusGuard watches which app is on screen so it can pause Instagram with your tasks, and reads FocusGuard\'s own settings pages so it can stop them being switched off. Nothing leaves your phone.</string>
+    <string name="widget_label">FocusGuard tasks</string>
+    <string name="widget_description">Your tasks on the home screen. Tick them off, or tap + to add a few.</string>
+    <string name="widget_title">Today</string>
+    <string name="widget_add">Add tasks</string>
+    <string name="widget_mark_done">Mark done</string>
+    <string name="widget_empty_title">All clear ✨</string>
+    <string name="widget_empty_body">Tap + to add what\'s next</string>
+    <string name="shortcut_add_short">Add tasks</string>
+    <string name="shortcut_add_long">Add tasks to FocusGuard</string>
 </resources>

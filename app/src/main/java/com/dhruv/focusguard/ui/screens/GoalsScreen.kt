@@ -1,5 +1,19 @@
 package com.dhruv.focusguard.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
+import com.dhruv.focusguard.data.repository.TaskRepository
+import com.dhruv.focusguard.guard.Haptics
+import com.dhruv.focusguard.ui.plant.GoalPlant
+import com.dhruv.focusguard.ui.plant.plantEmoji
+import com.dhruv.focusguard.ui.plant.plantStage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +33,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -41,7 +54,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dhruv.focusguard.data.model.Goal
 import com.dhruv.focusguard.ui.components.EmptyState
-import com.dhruv.focusguard.ui.components.IconTile
 import com.dhruv.focusguard.ui.components.MindfulCard
 import com.dhruv.focusguard.ui.components.MindfulField
 import com.dhruv.focusguard.ui.components.MindfulProgress
@@ -152,26 +164,60 @@ private fun GoalCard(
     onDelete: () -> Unit
 ) {
     val c = MaterialTheme.mindful
+    val context = LocalContext.current
+    val haptics = remember { Haptics(context) }
     val complete = goal.progress >= 100
+    // Set when the bloom happens right here (not when a bloomed goal is just shown).
+    var justBloomed by remember { mutableStateOf(false) }
+    val bloomPink = Color(0xFFD94C86)
 
     MindfulCard(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top) {
-            IconTile(
-                icon = Icons.Filled.Star,
-                tint = accentInk,
-                background = accent,
-                contentDescription = null
-            )
+            // The plant, in its own little patch of sky
+            Box(
+                modifier = Modifier
+                    .size(width = 104.dp, height = 132.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(accent.copy(alpha = 0.55f), accent.copy(alpha = 0.18f), Color.Transparent)
+                        )
+                    )
+            ) {
+                GoalPlant(
+                    progress = goal.progress,
+                    haptics = haptics,
+                    modifier = Modifier.fillMaxSize(),
+                    onBloomed = { justBloomed = true }
+                )
+            }
             Spacer(Modifier.width(Space.sm))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = goal.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = c.textPrimary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.Top) {
+                    Text(
+                        text = goal.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = c.textPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(Radius.chip)
+                            .clickable(role = Role.Button, onClick = onDelete),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = "Delete goal ${goal.title}",
+                            tint = c.textSecondary,
+                            modifier = Modifier.size(Sizes.icon)
+                        )
+                    }
+                }
                 if (goal.description.isNotBlank()) {
                     Text(
                         text = goal.description,
@@ -181,62 +227,71 @@ private fun GoalCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-            }
-
-            Spacer(Modifier.width(Space.xs))
-            Box(
-                modifier = Modifier
-                    .size(Sizes.touchTarget)
-                    .clip(Radius.chip)
-                    .clickable(role = Role.Button, onClick = onDelete),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Filled.Delete,
-                    contentDescription = "Delete goal ${goal.title}",
-                    tint = c.textSecondary,
-                    modifier = Modifier.size(Sizes.icon)
+                Spacer(Modifier.height(Space.xs))
+                Text(
+                    text = "${plantEmoji(goal.progress)}  ${plantStage(goal.progress)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (complete) bloomPink else accentInk
                 )
+                Spacer(Modifier.height(Space.xs))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MindfulProgress(
+                        progress = goal.progress / 100f,
+                        modifier = Modifier.weight(1f),
+                        color = if (complete) bloomPink else c.accent
+                    )
+                    Spacer(Modifier.width(Space.sm))
+                    Text(
+                        text = "${goal.progress}%",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (complete) bloomPink else c.textPrimary
+                    )
+                }
             }
+        }
+
+        AnimatedVisibility(
+            visible = complete,
+            enter = fadeIn(tween(500)) + expandVertically(tween(500)),
+            exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+        ) {
+            Text(
+                text = if (justBloomed) "It bloomed! You did what you set out to do. 🌸"
+                else "In full bloom. You did what you set out to do.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = bloomPink,
+                modifier = Modifier
+                    .padding(top = Space.sm)
+                    .fillMaxWidth()
+                    .clip(Radius.chip)
+                    .background(Color(0x1FD94C86))
+                    .padding(horizontal = Space.sm, vertical = Space.xs)
+            )
         }
 
         Spacer(Modifier.height(Space.sm))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            MindfulProgress(
-                progress = goal.progress / 100f,
-                modifier = Modifier.weight(1f),
-                color = if (complete) c.accentDeep else c.accent
-            )
-            Spacer(Modifier.width(Space.sm))
-            Text(
-                text = "${goal.progress}%",
-                style = MaterialTheme.typography.labelLarge,
-                color = if (complete) c.accentDeep else c.textPrimary
-            )
-        }
-
-        Spacer(Modifier.height(Space.xs))
-
-        if (complete) {
-            Text(
-                text = "Complete — nicely done.",
-                style = MaterialTheme.typography.bodySmall,
-                color = c.accentDeep
-            )
-            Spacer(Modifier.height(Space.xxs))
-        }
-
-        // Progress nudges — each writes through the existing view model call
+        // Progress nudges: each one grows (or shrinks) the plant
         Row(horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
             listOf(-10, -5, 5, 10).forEach { delta ->
                 ProgressNudge(
                     delta = delta,
                     enabled = if (delta < 0) goal.progress > 0 else goal.progress < 100,
-                    onClick = { onProgressChange((goal.progress + delta).coerceIn(0, 100)) },
+                    onClick = {
+                        haptics.tick()
+                        onProgressChange((goal.progress + delta).coerceIn(0, 100))
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+        if (!complete) {
+            Spacer(Modifier.height(Space.xxs))
+            Text(
+                text = "Finishing a task linked to this goal grows it by ${TaskRepository.GOAL_STEP_PER_TASK}%.",
+                style = MaterialTheme.typography.bodySmall,
+                color = c.textSecondary
+            )
         }
     }
 }

@@ -20,9 +20,28 @@
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
-    <!-- Lets the pause screen show Instagram's real icon -->
+    <!-- Lets the pause screen show Instagram's real icon, and find the music
+         apps it offers after "Long day" -->
     <queries>
         <package android:name="com.instagram.android" />
+        <package android:name="com.spotify.music" />
+        <package android:name="com.google.android.apps.youtube.music" />
+        <package android:name="com.jio.media.jiobeats" />
+        <package android:name="com.bsbportal.music" />
+        <package android:name="com.gaana" />
+        <package android:name="com.apple.android.music" />
+        <package android:name="com.amazon.mp3" />
+        <package android:name="deezer.android.app" />
+        <package android:name="com.soundcloud.android" />
+        <package android:name="com.miui.player" />
+        <package android:name="com.sec.android.app.music" />
+        <package android:name="com.heytap.music" />
+        <package android:name="com.android.bbkmusic" />
+        <package android:name="com.huawei.music" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.APP_MUSIC" />
+        </intent>
     </queries>
 
     <application
@@ -43,7 +62,39 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Long-press the icon → "Add tasks" -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
+
+        <!-- Quick add: the widget's "+" and the icon shortcut -->
+        <activity
+            android:name=".widget.QuickAddActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.FocusGuard.QuickAdd"
+            android:windowSoftInputMode="adjustResize|stateAlwaysVisible" />
+
+        <!-- Home-screen task widget -->
+        <receiver
+            android:name=".widget.TaskWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/task_widget_info" />
+        </receiver>
+
+        <!-- Ticks tasks from the widget; only our own taps can reach it -->
+        <receiver
+            android:name=".widget.WidgetActionReceiver"
+            android:exported="false" />
 
         <!-- Accessibility service to detect app launches -->
         <service

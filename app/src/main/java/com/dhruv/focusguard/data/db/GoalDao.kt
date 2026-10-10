@@ -24,4 +24,8 @@ interface GoalDao {
 
     @Query("UPDATE goals SET progress = :progress WHERE id = :id")
     suspend fun updateProgress(id: Long, progress: Int)
+
+    /** Nudge progress by [delta], kept within 0..100. */
+    @Query("UPDATE goals SET progress = MAX(0, MIN(100, progress + :delta)) WHERE id = :id")
+    suspend fun addProgress(id: Long, delta: Int)
 }

@@ -71,6 +71,10 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
         get() = repo.onboardingDone
         set(value) { repo.onboardingDone = value }
 
+    var widgetPromoDismissed: Boolean
+        get() = repo.widgetPromoDismissed
+        set(value) { repo.widgetPromoDismissed = value }
+
     var monitoredApps: Set<String>
         get() = repo.monitoredApps
         set(value) { repo.monitoredApps = value }

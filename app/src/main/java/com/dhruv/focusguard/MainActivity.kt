@@ -19,10 +19,16 @@ class MainActivity : ComponentActivity() {
         val viewModel = ViewModelProvider(this)[TaskViewModel::class.java]
         val openAddTask = intent?.getBooleanExtra(EXTRA_OPEN_ADD_TASK, false) == true
         val openSettings = intent?.getBooleanExtra(EXTRA_OPEN_SETTINGS, false) == true
+        val editTaskId = intent?.getLongExtra(EXTRA_EDIT_TASK, -1L) ?: -1L
 
         setContent {
             FocusGuardTheme {
-                AppNavGraph(viewModel = viewModel, openAddTask = openAddTask, openSettings = openSettings)
+                AppNavGraph(
+                    viewModel = viewModel,
+                    openAddTask = openAddTask,
+                    openSettings = openSettings,
+                    editTaskId = editTaskId
+                )
             }
         }
     }
@@ -41,5 +47,8 @@ class MainActivity : ComponentActivity() {
 
         /** Set by the pause screen's gear button. */
         const val EXTRA_OPEN_SETTINGS = "open_settings"
+
+        /** Set by a tap on a task in the home-screen widget. */
+        const val EXTRA_EDIT_TASK = "edit_task"
     }
 }

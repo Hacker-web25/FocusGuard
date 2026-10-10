@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the widget picker shows on Android 12+ (static sample content). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:clipToOutline="true"
+    android:paddingStart="16dp"
+    android:paddingTop="13dp"
+    android:paddingEnd="13dp"
+    android:paddingBottom="8dp">
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/p_open"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:baselineAligned="true"
+                android:orientation="horizontal">
+
+                <TextView
+                    style="@style/WidgetTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/widget_title" />
+
+                <TextView
+                    android:id="@+id/p_date"
+                    style="@style/WidgetDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="7dp"
+                    android:text="Sun, 11 Oct" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/p_sub"
+                style="@style/WidgetSub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="4 left · 🔥 3-day streak" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/p_add"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/widget_add_bg"
+            android:contentDescription="@string/widget_add"
+            android:padding="9dp"
+            android:src="@drawable/ic_widget_add" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="6dp" />
+
+    <LinearLayout
+        android:id="@+id/p_row0"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/widget_row_height"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="visible">
+
+        <FrameLayout
+            android:id="@+id/p_row0_hit"
+            android:layout_width="@dimen/widget_row_height"
+            android:layout_height="@dimen/widget_row_height"
+            android:layout_marginStart="-7dp">
+
+            <ImageView
+                android:id="@+id/p_row0_check"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/widget_mark_done"
+                android:src="@drawable/widget_ring_urgent" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/p_row0_title"
+            style="@style/WidgetRowTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Finish the pitch deck" />
+
+        <TextView
+            android:id="@+id/p_row0_title_done"
+            style="@style/WidgetRowTitleDone"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/p_row0_meta"
+            style="@style/WidgetChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/p_row0_meta_urgent"
+            style="@style/WidgetChipUrgent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="visible"
+            android:text="Today" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/p_row1"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/widget_row_height"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="visible">
+
+        <FrameLayout
+            android:id="@+id/p_row1_hit"
+            android:layout_width="@dimen/widget_row_height"
+            android:layout_height="@dimen/widget_row_height"
+            android:layout_marginStart="-7dp">
+
+            <ImageView
+                android:id="@+id/p_row1_check"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/widget_mark_done"
+                android:src="@drawable/widget_ring_urgent" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/p_row1_title"
+            style="@style/WidgetRowTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Pay electricity bill" />
+
+        <TextView
+            android:id="@+id/p_row1_title_done"
+            style="@style/WidgetRowTitleDone"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/p_row1_meta"
+            style="@style/WidgetChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/p_row1_meta_urgent"
+            style="@style/WidgetChipUrgent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="visible"
+            android:text="Overdue" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/p_row2"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/widget_row_height"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="visible">
+
+        <FrameLayout
+            android:id="@+id/p_row2_hit"
+            android:layout_width="@dimen/widget_row_height"
+            android:layout_height="@dimen/widget_row_height"
+            android:layout_marginStart="-7dp">
+
+            <ImageView
+                android:id="@+id/p_row2_check"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/widget_mark_done"
+                android:src="@drawable/widget_ring" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/p_row2_title"
+            style="@style/WidgetRowTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Call the bank" />
+
+        <TextView
+            android:id="@+id/p_row2_title_done"
+            style="@style/WidgetRowTitleDone"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/p_row2_meta"
+            style="@style/WidgetChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="visible"
+            android:text="Tomorrow" />
+
+        <TextView
+            android:id="@+id/p_row2_meta_urgent"
+            style="@style/WidgetChipUrgent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/p_row3"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/widget_row_height"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="visible">
+
+        <FrameLayout
+            android:id="@+id/p_row3_hit"
+            android:layout_width="@dimen/widget_row_height"
+            android:layout_height="@dimen/widget_row_height"
+            android:layout_marginStart="-7dp">
+
+            <ImageView
+                android:id="@+id/p_row3_check"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/widget_mark_done"
+                android:src="@drawable/widget_ring" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/p_row3_title"
+            style="@style/WidgetRowTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="30 min of DSA practice" />
+
+        <TextView
+            android:id="@+id/p_row3_title_done"
+            style="@style/WidgetRowTitleDone"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/p_row3_meta"
+            style="@style/WidgetChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/p_row3_meta_urgent"
+            style="@style/WidgetChipUrgent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+    </LinearLayout>
+
+  </LinearLayout>
+</FrameLayout>

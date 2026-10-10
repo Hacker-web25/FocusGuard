@@ -1,5 +1,15 @@
 package com.dhruv.focusguard.ui.screens
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Context
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.ui.graphics.Color
+import com.dhruv.focusguard.ui.components.PrimaryButton
+import com.dhruv.focusguard.ui.components.SecondaryButton
+import com.dhruv.focusguard.widget.TaskWidget
+import com.dhruv.focusguard.widget.TaskWidgetProvider
 import com.dhruv.focusguard.ui.components.rememberResumeTick
 import com.dhruv.focusguard.guard.PrefsGuardStore
 import androidx.compose.ui.platform.LocalContext
@@ -108,6 +118,11 @@ fun TaskListScreen(
             // ── What FocusGuard did for you today ──────────────
             item(key = "todayStats") {
                 TodayStrip()
+            }
+
+            // ── Put the list on the home screen (until placed or dismissed) ──
+            item(key = "widgetPromo") {
+                WidgetPromo(viewModel)
             }
 
             // ── Today's focus ──────────────────────────────────
@@ -456,5 +471,87 @@ private fun TodayStat(value: String, label: String, color: androidx.compose.ui.g
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, style = MaterialTheme.typography.headlineSmall, color = color)
         Text(label, style = MaterialTheme.typography.labelSmall, color = c.textSecondary)
+    }
+}
+
+// ── Home-screen widget card ────────────────────────────────────
+
+/**
+ * Offers the home-screen widget until one is placed or the card is closed.
+ * Uses the system's "add widget" prompt where the launcher supports it, and
+ * always shows the manual route, since some launchers (MIUI, some ColorOS
+ * builds) say they support it and then show nothing.
+ */
+@Composable
+private fun WidgetPromo(viewModel: TaskViewModel) {
+    val c = MaterialTheme.mindful
+    val context = LocalContext.current
+    val resume = rememberResumeTick()
+    var dismissed by remember { mutableStateOf(viewModel.widgetPromoDismissed) }
+    var asked by remember { mutableStateOf(false) }
+    val placed = remember(resume) { TaskWidget.placedIds(context).isNotEmpty() }
+    if (dismissed || placed) return
+
+    MindfulCard(
+        modifier = Modifier.fillMaxWidth(),
+        background = c.lavender.copy(alpha = if (c.isDark) 0.18f else 0.55f),
+        borderColor = Color.Transparent
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(c.surface),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Widgets, contentDescription = null, tint = c.accentDeep)
+            }
+            Spacer(Modifier.width(Space.sm))
+            Column(Modifier.weight(1f)) {
+                Text("Your list on the home screen", style = MaterialTheme.typography.titleSmall, color = c.textPrimary)
+                Text(
+                    "See what's urgent before you open anything. Tick tasks off and add new ones right there.",
+                    style = MaterialTheme.typography.bodySmall, color = c.textSecondary
+                )
+            }
+        }
+        if (asked) {
+            Spacer(Modifier.height(Space.xs))
+            Text(
+                "Nothing popped up? Long-press an empty spot on your home screen, tap Widgets, find FocusGuard and drag it out.",
+                style = MaterialTheme.typography.bodySmall, color = c.textPrimary
+            )
+        }
+        Spacer(Modifier.height(Space.sm))
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
+            PrimaryButton(
+                text = "Add widget",
+                onClick = {
+                    asked = true
+                    requestPinWidget(context)
+                },
+                modifier = Modifier.weight(1f)
+            )
+            SecondaryButton(
+                text = "Not now",
+                onClick = {
+                    viewModel.widgetPromoDismissed = true
+                    dismissed = true
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+private fun requestPinWidget(context: Context) {
+    try {
+        val manager = AppWidgetManager.getInstance(context)
+        if (manager.isRequestPinAppWidgetSupported) {
+            manager.requestPinAppWidget(ComponentName(context, TaskWidgetProvider::class.java), null, null)
+        }
+    } catch (_: Exception) {
+        // The manual instructions are already on screen.
     }
 }

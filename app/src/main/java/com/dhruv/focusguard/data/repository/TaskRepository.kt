@@ -26,8 +26,30 @@ class TaskRepository(context: Context) {
     suspend fun getTaskById(id: Long): Task? = taskDao.getById(id)
     suspend fun saveTask(task: Task): Long = taskDao.upsert(task)
     suspend fun deleteTask(task: Task) = taskDao.delete(task)
-    suspend fun markComplete(id: Long) = taskDao.markComplete(id)
-    suspend fun markIncomplete(id: Long) = taskDao.markIncomplete(id)
+    /**
+     * Completing a task that belongs to a goal waters that goal's plant:
+     * +[GOAL_STEP_PER_TASK]% progress. Un-completing takes it back. Every
+     * caller (app, pause screen, widget) comes through here, so it is
+     * counted exactly once.
+     */
+    suspend fun markComplete(id: Long) {
+        val task = taskDao.getById(id) ?: return
+        if (task.isCompleted) return
+        taskDao.markComplete(id)
+        task.goalId?.let { goalDao.addProgress(it, GOAL_STEP_PER_TASK) }
+    }
+
+    suspend fun markIncomplete(id: Long) {
+        val task = taskDao.getById(id) ?: return
+        if (!task.isCompleted) return
+        taskDao.markIncomplete(id)
+        task.goalId?.let { goalDao.addProgress(it, -GOAL_STEP_PER_TASK) }
+    }
+
+    /** Add several tasks at once (quick add: one per line). */
+    suspend fun addTasks(tasks: List<Task>) {
+        for (t in tasks) taskDao.upsert(t)
+    }
 
     // ── Goals ──────────────────────────────────────────────────
 
@@ -60,4 +82,19 @@ class TaskRepository(context: Context) {
     var onboardingDone: Boolean
         get() = prefs.getBoolean("onboarding_done", false)
         set(value) = prefs.edit().putBoolean("onboarding_done", value).apply()
+
+    /** The user closed the "add the widget" card on the Tasks screen. */
+    var widgetPromoDismissed: Boolean
+        get() = prefs.getBoolean("widget_promo_dismissed", false)
+        set(value) = prefs.edit().putBoolean("widget_promo_dismissed", value).apply()
+
+    /** Unsaved text from the quick-add box, so tapping outside never loses it. */
+    var quickAddDraft: String
+        get() = prefs.getString("quick_add_draft", "") ?: ""
+        set(value) = prefs.edit().putString("quick_add_draft", value).apply()
+
+    companion object {
+        /** Goal progress gained per finished task linked to that goal. */
+        const val GOAL_STEP_PER_TASK = 5
+    }
 }

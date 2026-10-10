@@ -94,13 +94,15 @@ private fun darkScheme(c: MindfulColors) = darkColorScheme(
 @Composable
 fun FocusGuardTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    paintSystemBars: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val mindfulColors = if (darkTheme) DarkMindfulColors else LightMindfulColors
     val colorScheme = if (darkTheme) darkScheme(mindfulColors) else lightScheme(mindfulColors)
 
     val view = LocalView.current
-    if (!view.isInEditMode) {
+    // Off for see-through windows (quick add over the home screen).
+    if (!view.isInEditMode && paintSystemBars) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
             @Suppress("DEPRECATION")
