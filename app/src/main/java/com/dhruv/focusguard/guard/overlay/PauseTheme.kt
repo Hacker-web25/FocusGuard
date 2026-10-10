@@ -195,11 +195,41 @@ class Backdrop(val image: ImageBitmap?) {
 val LocalBackdrop = staticCompositionLocalOf { Backdrop(null) }
 val LocalScreenSize = staticCompositionLocalOf { Size(1080f, 2400f) }
 
+/**
+ * Decoded once per process (the service preloads it when it starts), so every
+ * pause after the first opens with the painting already in place instead of
+ * flicking from the drawn sky to the image.
+ */
+object BackdropCache {
+    @Volatile
+    var image: ImageBitmap? = null
+        private set
+
+    @Volatile
+    private var tried = false
+
+    fun preload(context: Context) {
+        if (tried) return
+        tried = true
+        Thread {
+            image = loadPauseBackground(context.applicationContext)
+        }.apply { priority = Thread.MIN_PRIORITY }.start()
+    }
+
+    fun loadNow(context: Context): ImageBitmap? {
+        image?.let { return it }
+        val img = loadPauseBackground(context.applicationContext)
+        image = img
+        tried = true
+        return img
+    }
+}
+
 @Composable
 fun rememberBackdrop(): Backdrop {
     val context = LocalContext.current
-    val image by produceState<ImageBitmap?>(initialValue = null) {
-        value = withContext(Dispatchers.IO) { loadPauseBackground(context) }
+    val image by produceState(initialValue = BackdropCache.image) {
+        if (value == null) value = withContext(Dispatchers.IO) { BackdropCache.loadNow(context) }
     }
     return remember(image) { Backdrop(image) }
 }

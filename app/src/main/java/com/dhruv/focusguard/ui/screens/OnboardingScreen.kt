@@ -45,6 +45,18 @@ import com.dhruv.focusguard.ui.components.openAppDetails
 import com.dhruv.focusguard.ui.components.openMiuiAutostart
 import com.dhruv.focusguard.ui.components.rememberProtectionState
 import com.dhruv.focusguard.ui.components.requestBatteryExemption
+import com.dhruv.focusguard.ui.components.Calm
+import com.dhruv.focusguard.ui.components.CalmButton
+import com.dhruv.focusguard.ui.components.CalmText
+import com.dhruv.focusguard.ui.components.PermissionList
+import com.dhruv.focusguard.ui.components.SafetyHero
+import com.dhruv.focusguard.ui.components.StepStatus
+import com.dhruv.focusguard.ui.components.TransparencyCard
+import com.dhruv.focusguard.ui.components.TrustRow
+import com.dhruv.focusguard.ui.components.calmBackground
+import com.dhruv.focusguard.ui.components.rememberPermSteps
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import com.dhruv.focusguard.ui.theme.Space
 import com.dhruv.focusguard.ui.theme.mindful
 import com.dhruv.focusguard.ui.viewmodel.TaskViewModel
@@ -62,7 +74,7 @@ fun OnboardingScreen(viewModel: TaskViewModel, onFinished: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(c.canvas)
+            .calmBackground()
     ) {
         if (step == 0) {
             NameStep(
@@ -129,118 +141,44 @@ private fun NameStep(name: String, onNameChange: (String) -> Unit, onContinue: (
 
 @Composable
 private fun PermissionsStep(onBack: () -> Unit, onFinish: () -> Unit) {
-    val c = MaterialTheme.mindful
-    val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
-    val state = rememberProtectionState()
-    val xiaomi = remember { Protection.isXiaomi() }
-    var copied by rememberSaveable { mutableStateOf(false) }
+    val steps = rememberPermSteps()
+    val running = steps.firstOrNull { it.key == "accessibility" }?.status == StepStatus.Done
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = Space.gutter, vertical = Space.lg)
+            .padding(horizontal = 18.dp, vertical = 20.dp)
     ) {
         StepIndicator(current = 1)
-        Spacer(Modifier.height(Space.lg))
-        ScreenHeader(
-            title = "Turn on the guard",
-            subtitle = "Do these in order. Each one closes a way the guard could get switched off."
+        Spacer(Modifier.height(14.dp))
+        Text("Let\u2019s keep FocusGuard on", style = CalmText, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, lineHeight = 33.sp)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Phones love to switch apps like this off. These steps stop that. Each one says exactly why, and what it can\u2019t do.",
+            style = CalmText, fontSize = 14.sp, color = Calm.Sub, lineHeight = 20.sp
         )
-        Spacer(Modifier.height(Space.lg))
-
-        var n = 1
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            PermissionItem(
-                number = n++,
-                title = "Allow restricted settings",
-                body = "Android blocks accessibility for apps installed from a file. " +
-                    "Open App info, tap ⋮ (top right), then \"Allow restricted settings\". " +
-                    "If you don't see ⋮, try step ${n} first and come back.",
-                status = null,
-                actionLabel = "Open App info",
-                onAction = { context.openAppDetails() }
-            )
-        }
-
-        PermissionItem(
-            number = n++,
-            title = "Accessibility service",
-            body = "Lets FocusGuard see when Instagram opens and draw the pause over it. " +
-                "Find FocusGuard in the list (sometimes under \"Downloaded apps\") and turn it on.",
-            status = if (state.running) Status.Done else Status.Required,
-            actionLabel = "Open Accessibility",
-            onAction = { context.openAccessibilitySettings() }
+        Spacer(Modifier.height(18.dp))
+        SafetyHero(steps)
+        Spacer(Modifier.height(12.dp))
+        TrustRow()
+        Spacer(Modifier.height(20.dp))
+        PermissionList(steps)
+        Spacer(Modifier.height(20.dp))
+        TransparencyCard()
+        Spacer(Modifier.height(22.dp))
+        CalmButton(
+            text = if (running) "Start using FocusGuard" else "Finish step 2 to continue",
+            filled = true,
+            enabled = running,
+            onClick = { if (running) onFinish() }
         )
-
-        PermissionItem(
-            number = n++,
-            title = "Battery: no restrictions",
-            body = if (xiaomi) {
-                "Stops the phone killing FocusGuard in the background. Allow the prompt, then in " +
-                    "App info → Battery saver choose \"No restrictions\"."
-            } else {
-                "Stops the phone killing FocusGuard in the background."
-            },
-            status = if (state.batteryExempt) Status.Done else Status.Recommended,
-            actionLabel = "Allow",
-            onAction = { context.requestBatteryExemption() }
-        )
-
-        if (xiaomi) {
-            PermissionItem(
-                number = n++,
-                title = "Autostart",
-                body = "Lets the guard come back after a reboot. Find FocusGuard and turn Autostart on.",
-                status = null,
-                actionLabel = "Open Autostart",
-                onAction = { context.openMiuiAutostart() }
-            )
-            PermissionItem(
-                number = n++,
-                title = "Lock FocusGuard in Recents",
-                body = "Open Recents, long-press the FocusGuard card and tap the lock icon. " +
-                    "This stops \"Clear all\" and swipes from killing the guard.",
-                status = null,
-                actionLabel = null,
-                onAction = null
-            )
-        }
-
-        PermissionItem(
-            number = n,
-            title = "Auto-repair (optional, needs a computer)",
-            body = "Run this once with your phone connected over USB. Afterwards FocusGuard can " +
-                "switch itself back on if it gets killed.",
-            status = if (state.canSelfHeal) Status.Done else Status.Recommended,
-            actionLabel = if (copied) "Copied" else "Copy command",
-            onAction = {
-                clipboard.setText(AnnotatedString(Protection.ADB_GRANT_COMMAND))
-                copied = true
-            },
-            code = Protection.ADB_GRANT_COMMAND
-        )
-
-        Spacer(Modifier.height(Space.lg))
-        PrimaryButton(
-            text = if (state.running) "Start using FocusGuard" else "Turn on Accessibility to continue",
-            onClick = onFinish,
-            enabled = state.running,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(Space.xs))
-        SecondaryButton(
-            text = "Back",
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(Space.sm))
+        Spacer(Modifier.height(10.dp))
+        CalmButton(text = "Back", filled = false, onClick = onBack)
+        Spacer(Modifier.height(10.dp))
         Text(
             "Step 2 of 2",
-            style = MaterialTheme.typography.bodySmall,
-            color = c.textSecondary,
+            style = CalmText, fontSize = 12.sp, color = Calm.Faint,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center
         )

@@ -65,6 +65,14 @@ class GuardEngine(private val store: GuardStore) {
     private var diverted = false
 
     /**
+     * Right after "Close Instagram" we send the user Home, but for a few frames
+     * Instagram is still the top app. Until something else is seen on top (or
+     * this time passes), Instagram readings are ignored so the pause doesn't
+     * flash back open and count a fake skip.
+     */
+    private var suppressTargetUntil = 0L
+
+    /**
      * Call once when the service (re)connects. If a pause was running when the
      * process died, the user most likely killed us to get past it: treat that as
      * walking away, so the next open is penalised.
@@ -89,6 +97,14 @@ class GuardEngine(private val store: GuardStore) {
      * @param baseSeconds the user's configured pause length.
      */
     fun onForeground(isTarget: Boolean, baseSeconds: Int, nowElapsed: Long, nowWall: Long): Decision {
+        if (suppressTargetUntil != 0L) {
+            if (!isTarget || nowElapsed >= suppressTargetUntil) {
+                suppressTargetUntil = 0L
+                if (isTarget) inTarget = false // timed out still in Instagram: lock as a fresh open
+            } else {
+                return Decision.None
+            }
+        }
         if (isTarget) {
             if (inTarget) {
                 // Still inside Instagram. Self-heal if somehow neither locked nor unlocked.
@@ -166,7 +182,8 @@ class GuardEngine(private val store: GuardStore) {
      * User tapped "Close Instagram". This is the behaviour we want, so it is never
      * penalised. The caller sends the user home.
      */
-    fun onCloseTarget(): Decision {
+    fun onCloseTarget(nowElapsed: Long): Decision {
+        suppressTargetUntil = nowElapsed + CLOSE_SUPPRESS_MS
         lockShowing = false
         unlocked = false
         diverted = false
@@ -218,6 +235,7 @@ class GuardEngine(private val store: GuardStore) {
 
     companion object {
         const val GRACE_MS = 10_000L
+        const val CLOSE_SUPPRESS_MS = 2_500L
         const val ABANDON_WINDOW_MS = 10 * 60_000L
         const val STRIKE_SECONDS = 5
         const val MAX_PENALTY_SECONDS = 60

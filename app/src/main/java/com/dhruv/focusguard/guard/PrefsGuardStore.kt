@@ -39,6 +39,11 @@ class PrefsGuardStore(context: Context) : GuardStore {
     fun isTamperUnlocked(nowWall: Long = System.currentTimeMillis()): Boolean =
         tamperUnlockedUntil > nowWall
 
+    /** The user told us they switched on their phone's Autostart for FocusGuard (can't be read). */
+    var autostartConfirmed: Boolean
+        get() = prefs.getBoolean(KEY_AUTOSTART_OK, false)
+        set(value) { prefs.edit().putBoolean(KEY_AUTOSTART_OK, value).apply() }
+
     /** True while we have muted the media stream; lets a restarted service undo it. */
     var mutedByUs: Boolean
         get() = prefs.getBoolean(KEY_MUTED, false)
@@ -123,6 +128,7 @@ class PrefsGuardStore(context: Context) : GuardStore {
         private const val KEY_WALKAWAYS = "stats_walkaways"
         private const val KEY_FOCUS_MIN = "stats_focus_min"
         private const val KEY_WALK_DAYS = "walk_days"
+        private const val KEY_AUTOSTART_OK = "autostart_confirmed"
 
         /** How long a maintenance unlock lasts. */
         const val TAMPER_UNLOCK_MS = 5 * 60_000L

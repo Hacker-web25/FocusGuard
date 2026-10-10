@@ -21,6 +21,7 @@ import com.dhruv.focusguard.guard.LockOverlay
 import com.dhruv.focusguard.guard.PrefsGuardStore
 import com.dhruv.focusguard.guard.TamperRules
 import com.dhruv.focusguard.guard.Watchdog
+import com.dhruv.focusguard.guard.overlay.BackdropCache
 import com.dhruv.focusguard.guard.overlay.PauseActions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +65,10 @@ class AppDetectorService : AccessibilityService() {
     private val recheck = Runnable { evaluateForeground() }
     private val recheckLate = Runnable { evaluateForeground() }
     private val audioRelease = Runnable { if (!overlay.isShowing) audio.restore() }
+    private val closeHide = Runnable {
+        overlay.hide()
+        audio.restore()
+    }
     private val tamperRecheck = Runnable { maybeCheckTamper(null) }
 
     override fun onServiceConnected() {
@@ -75,6 +80,7 @@ class AppDetectorService : AccessibilityService() {
         haptics = Haptics(this)
         engine.recoverAfterRestart(System.currentTimeMillis())
         audio.restore() // undo a mute left behind if we were killed mid-pause
+        BackdropCache.preload(this) // so the pause's first frame already has its background
         overlay = LockOverlay(this, haptics, pauseActions)
         setContentEvents(false)
         running = true
@@ -182,6 +188,7 @@ class AppDetectorService : AccessibilityService() {
         when (decision) {
             is GuardEngine.Decision.Show -> {
                 // Silence first: this is the part the user hears.
+                handler.removeCallbacks(closeHide)
                 audio.silence()
                 handler.removeCallbacks(audioRelease)
                 lastShowAt = SystemClock.elapsedRealtime()
@@ -232,8 +239,13 @@ class AppDetectorService : AccessibilityService() {
         }
 
         override fun celebrationDone() {
-            applyDecision(engine.onCloseTarget())
+            // Home first, while the pause still covers Instagram; then fade the
+            // pause away over the home screen. Removing it first would flash
+            // Instagram for a frame.
+            engine.onCloseTarget(SystemClock.elapsedRealtime())
             performGlobalAction(GLOBAL_ACTION_HOME)
+            handler.removeCallbacks(closeHide)
+            handler.postDelayed(closeHide, 320)
         }
 
         override fun completeTask(task: Task) {

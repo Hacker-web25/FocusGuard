@@ -214,79 +214,104 @@ fun LiquidTile(
 }
 
 // ═════════════════════════════════════════════════════════════════
-//  Liquid "Continue to Instagram". Locked: pressing it shakes it with
-//  a double tick. Unlocked: press and hold, and a glowing liquid with
-//  a rolling wave front fills it left to right while haptic ticks
-//  speed up. Let go early and it drains back; fill it and you're in.
+//  Liquid pills.
+//
+//  Primary (the hero): big glowing indigo glass with light rays. A tap
+//  floods it with liquid light, wobbles like jelly, then fires.
+//
+//  Ghost (secondary): small frosted pill. Used for "hold to open
+//  Instagram": locked it shakes with a double tick; unlocked you press
+//  and hold while liquid fills it with a rolling wave and haptic ticks
+//  that speed up. Let go early and it drains back.
 // ═════════════════════════════════════════════════════════════════
 
 private const val HOLD_MS = 1400
 
+enum class PillStyle { Primary, Ghost }
+
 @Composable
-fun LiquidHoldButton(
-    unlocked: Boolean,
-    secondsLeftLabel: String,
-    appIcon: ImageBitmap?,
+fun LiquidPill(
+    label: String,
+    style: PillStyle,
+    hold: Boolean,
+    enabled: Boolean,
     haptics: Haptics,
-    onComplete: () -> Unit,
-    modifier: Modifier = Modifier
+    onActivate: () -> Unit,
+    modifier: Modifier = Modifier,
+    lockedLabel: String? = null,
+    leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val fill = remember { Animatable(0f) }
     val shake = remember { Animatable(0f) }
-    val squeeze = remember { Animatable(1f) }
+    val sx = remember { Animatable(1f) }
+    val sy = remember { Animatable(1f) }
     var flashLocked by remember { mutableStateOf(false) }
+    var fired by remember { mutableStateOf(false) }
+    val primary = style == PillStyle.Primary
     val shape = RoundedCornerShape(50)
+    val height = if (primary) 64.dp else 46.dp
 
-    val t = rememberInfiniteTransition(label = "cta")
+    val t = rememberInfiniteTransition(label = "pill")
     val phase by t.animateFloat(0f, 6.283f, infiniteRepeatable(tween(1600, easing = LinearEasing)), label = "wave")
-    val shimmer by t.animateFloat(-0.3f, 1.3f, infiniteRepeatable(tween(3200, easing = LinearEasing)), label = "shimmer")
-    val rays by t.animateFloat(0.45f, 1f, infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "rays")
+    val shimmer by t.animateFloat(-0.3f, 1.3f, infiniteRepeatable(tween(if (primary) 2600 else 4200, easing = LinearEasing)), label = "shimmer")
+    val breathe by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe")
+
+    val liquidColors = if (primary) listOf(Color(0xFF8FF0D2), Color(0xFF7FC8FF), Color(0xFFC9A8FF))
+    else listOf(P.LiquidFrom, P.LiquidMid, P.LiquidTo)
 
     Box(
         modifier
             .drawBehind {
-                // Rays at both ends, like the mockup
+                if (!primary) return@drawBehind
+                // Rays at both ends + soft halos, gently breathing
                 val cy = size.height / 2f
-                val len = 9.dp.toPx()
-                val gap = 10.dp.toPx()
-                val c = Color.White.copy(alpha = 0.85f * rays)
+                val len = 10.dp.toPx()
+                val gap = 10.dp.toPx() + breathe * 3.dp.toPx()
+                val c = Color.White.copy(alpha = 0.55f + 0.45f * breathe)
                 for (deg in listOf(-35f, 0f, 35f)) {
                     val rad = Math.toRadians(deg.toDouble())
                     val dx = cos(rad).toFloat()
                     val dy = sin(rad).toFloat()
-                    drawLine(c, Offset(-gap * dx, cy - gap * dy), Offset(-(gap + len) * dx, cy - (gap + len) * dy), 2.dp.toPx(), StrokeCap.Round)
-                    drawLine(c, Offset(size.width + gap * dx, cy - gap * dy), Offset(size.width + (gap + len) * dx, cy - (gap + len) * dy), 2.dp.toPx(), StrokeCap.Round)
+                    drawLine(c, Offset(-gap * dx, cy - gap * dy), Offset(-(gap + len) * dx, cy - (gap + len) * dy), 2.2.dp.toPx(), StrokeCap.Round)
+                    drawLine(c, Offset(size.width + gap * dx, cy - gap * dy), Offset(size.width + (gap + len) * dx, cy - (gap + len) * dy), 2.2.dp.toPx(), StrokeCap.Round)
                 }
-                // End glows
+                val haloR = size.height * (1.0f + 0.15f * breathe)
                 drawCircle(
-                    Brush.radialGradient(listOf(P.CtaRim.copy(alpha = 0.55f), Color.Transparent), center = Offset(0f, cy), radius = size.height * 0.9f),
-                    radius = size.height * 0.9f, center = Offset(0f, cy)
+                    Brush.radialGradient(listOf(P.CtaRim.copy(alpha = 0.6f), Color.Transparent), center = Offset(0f, cy), radius = haloR),
+                    radius = haloR, center = Offset(0f, cy)
                 )
                 drawCircle(
-                    Brush.radialGradient(listOf(P.LiquidTo.copy(alpha = 0.45f), Color.Transparent), center = Offset(size.width, cy), radius = size.height * 0.9f),
-                    radius = size.height * 0.9f, center = Offset(size.width, cy)
+                    Brush.radialGradient(listOf(P.LiquidTo.copy(alpha = 0.5f), Color.Transparent), center = Offset(size.width, cy), radius = haloR),
+                    radius = haloR, center = Offset(size.width, cy)
                 )
             }
             .graphicsLayer {
-                translationX = shake.value * 10.dp.toPx()
-                scaleX = squeeze.value
-                scaleY = 2f - squeeze.value
+                translationX = shake.value * 9.dp.toPx()
+                scaleX = sx.value
+                scaleY = sy.value
             }
-            .shadow(22.dp, shape, clip = false, ambientColor = P.CtaGlow, spotColor = P.CtaGlow)
+            .then(
+                if (primary) Modifier.shadow(26.dp, shape, clip = false, ambientColor = P.CtaGlow, spotColor = P.CtaGlow)
+                else Modifier
+            )
             .clip(shape)
-            .background(Brush.verticalGradient(listOf(P.CtaTop, P.CtaMid, P.CtaBottom)))
-            .pointerInput(unlocked) {
+            .background(
+                if (primary) Brush.verticalGradient(listOf(P.CtaTop, P.CtaMid, P.CtaBottom))
+                else Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.34f), Color.White.copy(alpha = 0.20f)))
+            )
+            .pointerInput(enabled, hold) {
                 awaitEachGesture {
                     awaitFirstDown()
-                    if (!unlocked) {
+                    if (fired) return@awaitEachGesture
+                    if (!enabled) {
                         haptics.tick()
                         flashLocked = true
                         scope.launch {
                             for (x in listOf(-1f, 0.8f, -0.6f, 0.4f, -0.2f, 0f)) shake.animateTo(x, tween(55))
                         }
                         scope.launch { delay(120); haptics.tick() }
-                        // wait for release
                         while (true) {
                             val ev = awaitPointerEvent()
                             if (ev.changes.none { it.pressed }) break
@@ -294,17 +319,49 @@ fun LiquidHoldButton(
                         scope.launch { delay(1400); flashLocked = false }
                         return@awaitEachGesture
                     }
+
+                    if (!hold) {
+                        // Tap: squish while pressed, flood with liquid on release
+                        haptics.tick()
+                        scope.launch { sx.animateTo(1.03f, spring(0.5f, 600f)) }
+                        scope.launch { sy.animateTo(0.92f, spring(0.5f, 600f)) }
+                        var inside = true
+                        while (true) {
+                            val ev = awaitPointerEvent()
+                            val ch = ev.changes.firstOrNull() ?: break
+                            inside = ch.position.x in 0f..size.width.toFloat() && ch.position.y in -40f..(size.height + 40f)
+                            if (!ch.pressed) break
+                        }
+                        if (!inside) {
+                            scope.launch { sx.animateTo(1f, spring(0.3f, 400f)) }
+                            scope.launch { sy.animateTo(1f, spring(0.3f, 400f)) }
+                            return@awaitEachGesture
+                        }
+                        fired = true
+                        haptics.click()
+                        scope.launch { sx.animateTo(0.96f, tween(80)); sx.animateTo(1f, spring(0.22f, 260f)) }
+                        scope.launch { sy.animateTo(1.07f, tween(80)); sy.animateTo(1f, spring(0.22f, 260f)) }
+                        scope.launch {
+                            fill.animateTo(1f, tween(300, easing = FastOutSlowInEasing))
+                            onActivate()
+                        }
+                        return@awaitEachGesture
+                    }
+
+                    // Hold to activate
                     haptics.click()
-                    scope.launch { squeeze.animateTo(0.97f, spring(0.5f, 500f)) }
+                    scope.launch { sx.animateTo(0.97f, spring(0.5f, 500f)) }
+                    scope.launch { sy.animateTo(1.03f, spring(0.5f, 500f)) }
                     var done = false
                     val fillJob: Job = scope.launch {
                         val remaining = ((1f - fill.value) * HOLD_MS).toInt().coerceAtLeast(1)
                         fill.animateTo(1f, tween(remaining, easing = LinearEasing))
                         done = true
+                        fired = true
                         haptics.thud()
-                        squeeze.animateTo(1.04f, tween(90))
-                        squeeze.animateTo(1f, spring(0.3f, 300f))
-                        onComplete()
+                        sx.animateTo(1.04f, tween(90))
+                        sx.animateTo(1f, spring(0.3f, 300f))
+                        onActivate()
                     }
                     val tickJob: Job = scope.launch {
                         while (true) {
@@ -321,22 +378,21 @@ fun LiquidHoldButton(
                     if (!done) {
                         fillJob.cancel()
                         scope.launch { fill.animateTo(0f, spring(0.55f, 90f)) }
-                        scope.launch { squeeze.animateTo(1f, spring(0.25f, 300f)) }
+                        scope.launch { sx.animateTo(1f, spring(0.25f, 300f)) }
+                        scope.launch { sy.animateTo(1f, spring(0.25f, 300f)) }
                     }
                 }
             }
             .drawWithContent {
                 val w = size.width
                 val h = size.height
-                // Idle liquid sheen drifting across
                 val sx0 = shimmer * w
                 drawRect(
                     Brush.horizontalGradient(
-                        listOf(Color.Transparent, Color.White.copy(alpha = 0.10f), Color.Transparent),
+                        listOf(Color.Transparent, Color.White.copy(alpha = if (primary) 0.16f else 0.18f), Color.Transparent),
                         startX = sx0 - w * 0.25f, endX = sx0 + w * 0.25f
                     )
                 )
-                // Liquid fill with a rolling wave front
                 val f = fill.value
                 if (f > 0.001f) {
                     val front = f * (w + h * 0.4f)
@@ -352,63 +408,65 @@ fun LiquidHoldButton(
                         lineTo(0f, h)
                         close()
                     }
-                    drawPath(path, Brush.horizontalGradient(listOf(P.LiquidFrom, P.LiquidMid, P.LiquidTo), startX = 0f, endX = max(front, 1f)), alpha = 0.92f)
-                    // Bubbles rising inside the liquid
+                    drawPath(path, Brush.horizontalGradient(liquidColors, startX = 0f, endX = max(front, 1f)), alpha = if (primary) 0.75f else 0.92f)
                     for (i in 0 until 6) {
                         val bx = (i * 0.17f + 0.05f) * front
                         val by = h - ((phase / 6.283f + i * 0.21f) % 1f) * h
                         drawCircle(Color.White.copy(alpha = 0.35f), radius = h * 0.035f * (1 + i % 2), center = Offset(bx, by))
                     }
                 }
-                // Glass gloss on the top half
                 drawRoundRect(
-                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.22f), Color.Transparent), endY = h * 0.55f),
+                    Brush.verticalGradient(listOf(Color.White.copy(alpha = if (primary) 0.24f else 0.30f), Color.Transparent), endY = h * 0.55f),
                     size = Size(w, h * 0.55f),
                     cornerRadius = CornerRadius(h / 2f)
                 )
                 drawContent()
-                // Rim
                 drawRoundRect(
-                    Brush.horizontalGradient(listOf(P.CtaRim.copy(alpha = 0.9f), Color.White.copy(alpha = 0.35f), P.LiquidTo.copy(alpha = 0.8f))),
+                    if (primary) Brush.horizontalGradient(listOf(P.CtaRim.copy(alpha = 0.95f), Color.White.copy(alpha = 0.45f), P.LiquidTo.copy(alpha = 0.85f)))
+                    else Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.85f), Color.White.copy(alpha = 0.30f))),
                     cornerRadius = CornerRadius(h / 2f),
-                    style = Stroke(1.6.dp.toPx())
+                    style = Stroke((if (primary) 1.8 else 1.2).dp.toPx())
                 )
             }
     ) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(60.dp)
-                .padding(start = 14.dp, end = 16.dp),
+                .height(height)
+                .padding(start = if (primary) 10.dp else 8.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AppIcon(appIcon, 32.dp)
-            Spacer(Modifier.width(12.dp))
+            if (leading != null) {
+                leading()
+                Spacer(Modifier.width(if (primary) 12.dp else 10.dp))
+            }
             Text(
-                text = if (flashLocked && !unlocked) "Unlocks in $secondsLeftLabel" else "Continue to Instagram",
-                style = BaseText,
+                text = if (flashLocked && !enabled && lockedLabel != null) lockedLabel else label,
+                style = if (primary) BaseText else OnSky,
                 color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = if (primary) 18.sp else 14.sp,
+                fontWeight = if (primary) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
                 modifier = Modifier.weight(1f)
             )
-            if (unlocked) {
-                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-            } else {
-                Row(
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.White.copy(alpha = 0.16f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Rounded.Lock, contentDescription = "Locked", tint = Color.White, modifier = Modifier.size(12.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(secondsLeftLabel, style = Tabular, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
+            if (trailing != null) trailing()
         }
+    }
+}
+
+/** Small lock + countdown badge for the locked hold pill. */
+@Composable
+fun LockBadge(text: String) {
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = 0.22f))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Rounded.Lock, contentDescription = "Locked", tint = Color.White, modifier = Modifier.size(12.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(text, style = Tabular, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

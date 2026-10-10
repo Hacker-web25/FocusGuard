@@ -2,6 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- FocusGuard never goes online. This strips INTERNET even if a library
+         ever asked for it, so the "no internet access" promise in Settings
+         is enforced by Android itself. -->
+    <uses-permission
+        android:name="android.permission.INTERNET"
+        tools:node="remove" />
+
     <!-- Haptics on the pause screen -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Restart the watchdog after reboot -->

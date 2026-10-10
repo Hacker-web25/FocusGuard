@@ -1251,35 +1251,55 @@ fun BottomActions(
             .padding(horizontal = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // The hero: walking away is the big, glowing, one-tap choice.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(66.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(62.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "You’re\nin control",
+                    "You\u2019re\nin control",
                     style = OnSky.copy(fontFamily = Hand), fontSize = 12.sp, lineHeight = 15.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.rotate(-12f)
                 )
             }
-            LiquidHoldButton(
-                unlocked = unlocked,
-                secondsLeftLabel = remainingLabel,
-                appIcon = appIcon,
+            LiquidPill(
+                label = "Close Instagram",
+                style = PillStyle.Primary,
+                hold = false,
+                enabled = true,
                 haptics = haptics,
-                onComplete = onContinue,
+                onActivate = onWalkAway,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 20.dp, end = 24.dp)
+                    .padding(start = 18.dp, end = 26.dp),
+                leading = {
+                    Box(
+                        Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Brush.linearGradient(listOf(Color(0xFFB8F5DF), Color(0xFF5FCFAE)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Rounded.Eco, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                    }
+                },
+                trailing = {
+                    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
+                }
             )
         }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "Not now, close Instagram",
-            style = OnSky, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-            textDecoration = TextDecoration.Underline,
-            modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .clickable { haptics.click(); onWalkAway() }
-                .padding(horizontal = 12.dp, vertical = 6.dp)
+        Spacer(Modifier.height(12.dp))
+        // The quiet option: small, frosted, and it takes a deliberate hold.
+        LiquidPill(
+            label = if (unlocked) "Hold to open Instagram" else "Open Instagram",
+            style = PillStyle.Ghost,
+            hold = true,
+            enabled = unlocked,
+            haptics = haptics,
+            onActivate = onContinue,
+            lockedLabel = "Unlocks in $remainingLabel",
+            modifier = Modifier.fillMaxWidth(0.62f),
+            leading = { AppIcon(appIcon, 28.dp) },
+            trailing = { if (!unlocked) LockBadge(remainingLabel) }
         )
     }
 }

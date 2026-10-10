@@ -94,7 +94,10 @@ class LockOverlay(
             PixelFormat.OPAQUE
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            windowAnimations = 0
+            // System-run fade in/out (the same GPU animation toasts use): the
+            // pause eases in over Instagram and eases out on close, instead of
+            // popping. Removal plays the exit fade even though the view is gone.
+            windowAnimations = android.R.style.Animation_Toast
         }
 
         try {
