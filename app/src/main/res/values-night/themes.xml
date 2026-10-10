@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Dark counterpart of the main window. -->
+    <style name="Theme.FocusGuard" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_night</item>
+        <item name="android:statusBarColor">@color/window_night</item>
+        <item name="android:navigationBarColor">@color/window_night</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+</resources>

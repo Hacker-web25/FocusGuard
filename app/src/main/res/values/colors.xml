@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#1A1A2E</color>
+    <!-- Launcher icon canvas: deep botanical green -->
+    <color name="ic_launcher_background">#1E3A33</color>
+
+    <!-- Window backgrounds, matched to the Compose theme so there is no
+         flash of the wrong colour before the first frame is drawn. -->
+    <color name="window_ivory">#F8F6F0</color>
+    <color name="window_night">#0E1730</color>
+    <color name="focus_night">#111B36</color>
 </resources>

@@ -1,12 +1,40 @@
+<!--
+  Launcher foreground: a botanical sprig growing inside a soft shield.
+  Adaptive icons mask to the centre 72x72 of this 108x108 canvas, so all
+  meaningful artwork stays within roughly x/y 36..72.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Shield in soft botanical green -->
     <path
-        android:fillColor="#E94560"
-        android:pathData="M54,24L30,34v16c0,14.4 10.2,27.9 24,32 13.8,-4.1 24,-17.6 24,-32V34L54,24z"/>
+        android:fillColor="#77CDB4"
+        android:pathData="M54,27L33,36v15c0,13.8 8.9,26.5 21,30.4 12.1,-3.9 21,-16.6 21,-30.4V36L54,27z" />
+
+    <!-- Stem -->
+    <path
+        android:fillColor="#367F6D"
+        android:pathData="M53,72c0,0 -1.4,-13.6 1.2,-21.4 1.4,-4.3 3.4,-7.6 3.4,-7.6l2.6,1.5c0,0 -2,3.2 -3.2,7.1 -2.4,7.2 -1,20.4 -1,20.4z" />
+
+    <!-- Left leaf -->
+    <path
+        android:fillColor="#F8F6F0"
+        android:pathData="M55,61c-4.6,1.4 -9.6,-0.4 -12.2,-4.2 3.9,-2.7 9.2,-2.6 12.2,0.4z" />
+
+    <!-- Right leaf -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M50,58L42,50l2.8,-2.8 5.2,5.2 11.2,-11.2 2.8,2.8z"/>
+        android:pathData="M58,52c1.6,-4.5 6,-7.6 10.6,-7.3 -0.3,4.7 -3.7,8.7 -8,9.6z" />
+
+    <!-- Bloom -->
+    <path
+        android:fillColor="#F1C5CA"
+        android:pathData="M59,42m-5.4,0a5.4,5.4 0 1,0 10.8,0a5.4,5.4 0 1,0 -10.8,0" />
+    <path
+        android:fillColor="#F4DEC8"
+        android:pathData="M59,42m-2.2,0a2.2,2.2 0 1,0 4.4,0a2.2,2.2 0 1,0 -4.4,0" />
+
 </vector>

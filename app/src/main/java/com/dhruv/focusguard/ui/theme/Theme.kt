@@ -2,32 +2,93 @@ package com.dhruv.focusguard.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Highlight,
-    onPrimary = Color.White,
-    secondary = Accent,
-    background = SurfaceDark,
-    surface = CardDark,
-    onBackground = Color.White,
-    onSurface = Color.White
+/**
+ * Semantic MindfulMe tokens, available anywhere under [FocusGuardTheme]
+ * as `MaterialTheme.mindful`.
+ */
+val LocalMindfulColors = staticCompositionLocalOf { LightMindfulColors }
+
+val MaterialTheme.mindful: MindfulColors
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalMindfulColors.current
+
+private val AppShapes = Shapes(
+    extraSmall = Radius.field,
+    small = Radius.field,
+    medium = Radius.button,
+    large = Radius.card,
+    extraLarge = Radius.cardLarge
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Highlight,
-    onPrimary = Color.White,
-    secondary = Accent,
-    background = SurfaceLight,
-    surface = CardLight,
-    onBackground = Color(0xFF1A1A1A),
-    onSurface = Color(0xFF1A1A1A)
+/**
+ * Material's own scheme is mapped from the same tokens so stock controls
+ * (switches, sliders, dialogs, menus, text selection) inherit the palette
+ * instead of falling back to purple defaults.
+ */
+private fun lightScheme(c: MindfulColors) = lightColorScheme(
+    primary = c.accentDeep,
+    onPrimary = PureWhite,
+    primaryContainer = c.accentSoft,
+    onPrimaryContainer = c.accentDeep,
+    secondary = c.lavender,
+    onSecondary = LavenderInk,
+    secondaryContainer = c.lavender,
+    onSecondaryContainer = LavenderInk,
+    tertiary = c.powderBlue,
+    onTertiary = BlueInk,
+    background = c.canvas,
+    onBackground = c.textPrimary,
+    surface = c.surface,
+    onSurface = c.textPrimary,
+    surfaceVariant = c.surfaceSunken,
+    onSurfaceVariant = c.textSecondary,
+    outline = c.borderStrong,
+    outlineVariant = c.border,
+    error = c.danger,
+    onError = PureWhite,
+    errorContainer = c.blush,
+    onErrorContainer = BlushInk,
+    scrim = GreenInk
+)
+
+private fun darkScheme(c: MindfulColors) = darkColorScheme(
+    primary = c.accent,
+    onPrimary = c.onAccent,
+    primaryContainer = c.accentSoft,
+    onPrimaryContainer = c.accent,
+    secondary = c.lavender,
+    onSecondary = FocusNightDeep,
+    secondaryContainer = c.surfaceRaised,
+    onSecondaryContainer = c.lavender,
+    tertiary = c.powderBlue,
+    onTertiary = FocusNightDeep,
+    background = c.canvas,
+    onBackground = c.textPrimary,
+    surface = c.surface,
+    onSurface = c.textPrimary,
+    surfaceVariant = c.surfaceSunken,
+    onSurfaceVariant = c.textSecondary,
+    outline = c.borderStrong,
+    outlineVariant = c.border,
+    error = c.danger,
+    onError = FocusNightDeep,
+    errorContainer = c.chipUrgent,
+    onErrorContainer = c.chipUrgentInk,
+    scrim = FocusNightDeep
 )
 
 @Composable
@@ -35,20 +96,37 @@ fun FocusGuardTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val mindfulColors = if (darkTheme) DarkMindfulColors else LightMindfulColors
+    val colorScheme = if (darkTheme) darkScheme(mindfulColors) else lightScheme(mindfulColors)
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
-            window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            @Suppress("DEPRECATION")
+            window.statusBarColor = mindfulColors.canvas.toArgb()
+            @Suppress("DEPRECATION")
+            window.navigationBarColor = mindfulColors.canvas.toArgb()
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !darkTheme
+            controller.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = AppTypography,
-        content = content
-    )
+    CompositionLocalProvider(LocalMindfulColors provides mindfulColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = AppTypography,
+            shapes = AppShapes,
+            content = content
+        )
+    }
 }
+
+/**
+ * Night theme used by the pause overlay. It is always dark regardless of the
+ * system setting, because the overlay is meant to read as a different, calmer
+ * place than the rest of the app.
+ */
+@Composable
+fun FocusNightTheme(content: @Composable () -> Unit) = FocusGuardTheme(darkTheme = true, content = content)
