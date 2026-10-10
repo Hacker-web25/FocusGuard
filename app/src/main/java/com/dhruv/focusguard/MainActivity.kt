@@ -18,10 +18,11 @@ class MainActivity : ComponentActivity() {
 
         val viewModel = ViewModelProvider(this)[TaskViewModel::class.java]
         val openAddTask = intent?.getBooleanExtra(EXTRA_OPEN_ADD_TASK, false) == true
+        val openSettings = intent?.getBooleanExtra(EXTRA_OPEN_SETTINGS, false) == true
 
         setContent {
             FocusGuardTheme {
-                AppNavGraph(viewModel = viewModel, openAddTask = openAddTask)
+                AppNavGraph(viewModel = viewModel, openAddTask = openAddTask, openSettings = openSettings)
             }
         }
     }
@@ -37,5 +38,8 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** Set by the pause screen's "Add a task" button. */
         const val EXTRA_OPEN_ADD_TASK = "open_add_task"
+
+        /** Set by the pause screen's gear button. */
+        const val EXTRA_OPEN_SETTINGS = "open_settings"
     }
 }

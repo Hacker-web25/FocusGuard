@@ -55,7 +55,7 @@ private const val ONBOARDING = "onboarding"
 private val fullScreenRoutes = setOf("add_task", "edit_task/{taskId}", ONBOARDING)
 
 @Composable
-fun AppNavGraph(viewModel: TaskViewModel, openAddTask: Boolean = false) {
+fun AppNavGraph(viewModel: TaskViewModel, openAddTask: Boolean = false, openSettings: Boolean = false) {
     val c = MaterialTheme.mindful
     val navController = rememberNavController()
     val currentBackStack by navController.currentBackStackEntryAsState()
@@ -66,8 +66,10 @@ fun AppNavGraph(viewModel: TaskViewModel, openAddTask: Boolean = false) {
     val protection = rememberProtectionState()
 
     // Arriving from the pause screen's "Add a task": go straight to the form.
-    LaunchedEffect(openAddTask) {
-        if (openAddTask && viewModel.onboardingDone) navController.navigate("add_task")
+    LaunchedEffect(openAddTask, openSettings) {
+        if (!viewModel.onboardingDone) return@LaunchedEffect
+        if (openAddTask) navController.navigate("add_task")
+        else if (openSettings) navController.navigate(Screen.Settings.route) { launchSingleTop = true }
     }
 
     Scaffold(

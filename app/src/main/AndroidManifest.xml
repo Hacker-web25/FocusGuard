@@ -13,6 +13,11 @@
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- Lets the pause screen show Instagram's real icon -->
+    <queries>
+        <package android:name="com.instagram.android" />
+    </queries>
+
     <application
         android:name=".FocusGuardApp"
         android:allowBackup="true"

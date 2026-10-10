@@ -51,7 +51,8 @@ class LockOverlay(
         justPenalized: Boolean,
         userName: String,
         opensToday: Int,
-        walkAwaysToday: Int
+        walkAwaysToday: Int,
+        streak: Int
     ) {
         hide()
 
@@ -64,6 +65,7 @@ class LockOverlay(
             this.justPenalized = justPenalized
             this.opensToday = opensToday
             this.walkAwaysToday = walkAwaysToday
+            this.streak = streak
         }
 
         val lifecycleOwner = OverlayLifecycleOwner().also { it.start() }
@@ -120,10 +122,10 @@ class LockOverlay(
         owner = null
     }
 
-    fun setContent(tasks: List<Task>, goal: Goal?) {
+    fun setContent(tasks: List<Task>, goals: List<Goal>) {
         val st = state ?: return
         st.tasks = tasks
-        st.goal = goal
+        st.goals = goals
         st.tasksLoaded = true
     }
 
@@ -138,6 +140,6 @@ class LockOverlay(
 
     companion object {
         private const val TAG = "LockOverlay"
-        private val NIGHT = Color.parseColor("#070B18")
+        private val NIGHT = Color.parseColor("#7F9AD6") // sky tone, so the first frame matches the design
     }
 }

@@ -56,8 +56,38 @@ class PrefsGuardStore(context: Context) : GuardStore {
     val focusMinutesToday: Int get() = todayInt(KEY_FOCUS_MIN)
 
     fun recordOpen() = bumpToday(KEY_OPENS, 1)
-    fun recordWalkAway() = bumpToday(KEY_WALKAWAYS, 1)
+    fun recordWalkAway() {
+        bumpToday(KEY_WALKAWAYS, 1)
+        markWalkDay()
+    }
     fun recordFocusMinutes(minutes: Int) = bumpToday(KEY_FOCUS_MIN, minutes)
+
+    /**
+     * Consecutive days (ending today, or yesterday if today has none yet) on
+     * which you walked away from Instagram at least once.
+     */
+    fun streakDays(): Int {
+        val days = prefs.getStringSet(KEY_WALK_DAYS, emptySet()) ?: emptySet()
+        val fmt = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
+        val cal = java.util.Calendar.getInstance()
+        if (fmt.format(cal.time) !in days) cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        var n = 0
+        while (fmt.format(cal.time) in days) {
+            n++
+            cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        }
+        return n
+    }
+
+    private fun markWalkDay() {
+        val fmt = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
+        val cutoff = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_YEAR, -90) }
+        val keep = fmt.format(cutoff.time)
+        val days = HashSet(prefs.getStringSet(KEY_WALK_DAYS, emptySet()) ?: emptySet())
+        days.add(todayKey())
+        days.removeAll { it < keep }
+        prefs.edit().putStringSet(KEY_WALK_DAYS, days).apply()
+    }
 
     private fun todayKey(): String =
         java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
@@ -92,6 +122,7 @@ class PrefsGuardStore(context: Context) : GuardStore {
         private const val KEY_OPENS = "stats_opens"
         private const val KEY_WALKAWAYS = "stats_walkaways"
         private const val KEY_FOCUS_MIN = "stats_focus_min"
+        private const val KEY_WALK_DAYS = "walk_days"
 
         /** How long a maintenance unlock lasts. */
         const val TAMPER_UNLOCK_MS = 5 * 60_000L

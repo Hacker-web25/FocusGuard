@@ -193,7 +193,8 @@ class AppDetectorService : AccessibilityService() {
                     justPenalized = decision.justPenalized,
                     userName = repo.userName,
                     opensToday = store.opensToday,
-                    walkAwaysToday = store.walkAwaysToday
+                    walkAwaysToday = store.walkAwaysToday,
+                    streak = store.streakDays()
                 )
                 loadOverlayContent()
                 Log.i(TAG, "Locked: ${decision.totalSeconds}s (strikes=${decision.strikes})")
@@ -208,14 +209,10 @@ class AppDetectorService : AccessibilityService() {
 
     private fun loadOverlayContent() {
         scope.launch {
-            val (tasks, goal) = withContext(Dispatchers.IO) {
-                val t = repo.getActiveTasksOnce()
-                val g = repo.getAllGoalsOnce()
-                    .filter { it.progress < 100 }
-                    .minByOrNull { it.progress }
-                t to g
+            val (tasks, goals) = withContext(Dispatchers.IO) {
+                repo.getActiveTasksOnce() to repo.getAllGoalsOnce()
             }
-            overlay.setContent(tasks, goal)
+            overlay.setContent(tasks, goals)
         }
     }
 
@@ -244,6 +241,21 @@ class AppDetectorService : AccessibilityService() {
         }
 
         override fun recordFocus(minutes: Int) = store.recordFocusMinutes(minutes)
+
+        override fun streak(): Int = store.streakDays()
+
+        override fun openApp(settings: Boolean) {
+            engine.onDiverted()
+            try {
+                startActivity(
+                    Intent(this@AppDetectorService, MainActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        .putExtra(MainActivity.EXTRA_OPEN_SETTINGS, settings)
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not open FocusGuard", e)
+            }
+        }
 
         override fun addTask() {
             engine.onDiverted()
