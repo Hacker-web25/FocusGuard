@@ -17,10 +17,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val viewModel = ViewModelProvider(this)[TaskViewModel::class.java]
+        val openAddTask = intent?.getBooleanExtra(EXTRA_OPEN_ADD_TASK, false) == true
 
         setContent {
             FocusGuardTheme {
-                AppNavGraph(viewModel = viewModel)
+                AppNavGraph(viewModel = viewModel, openAddTask = openAddTask)
             }
         }
     }
@@ -31,5 +32,10 @@ class MainActivity : ComponentActivity() {
         // was granted over adb) and restarts the once-a-minute watchdog.
         Protection.healIfNeeded(this)
         Watchdog.schedule(this)
+    }
+
+    companion object {
+        /** Set by the pause screen's "Add a task" button. */
+        const val EXTRA_OPEN_ADD_TASK = "open_add_task"
     }
 }

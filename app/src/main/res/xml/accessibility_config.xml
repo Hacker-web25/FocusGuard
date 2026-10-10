@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  typeWindowsChanged + flagRetrieveInteractiveWindows let the service read the
-  real top-most app window instead of guessing from individual events.
-  canRetrieveWindowContent is needed to read window roots and for the tamper
-  lock (recognising FocusGuard's App info / accessibility pages).
-  notificationTimeout 100ms coalesces Instagram's frequent content events.
+  Base subscription is only window events, with zero delay, so Instagram is
+  locked the moment its window appears. The service adds content-changed
+  events at runtime only while a settings / launcher app is on top (for the
+  tamper lock), so Instagram's busy feed never floods it.
+  flagRetrieveInteractiveWindows lets it read the real top-most app window.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeWindowContentChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_description"
-    android:notificationTimeout="100" />
+    android:notificationTimeout="0" />

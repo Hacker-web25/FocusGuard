@@ -24,7 +24,11 @@ interface GuardStore {
  *  - Coming back within [GRACE_MS] of leaving keeps the session; later means a new pause.
  *  - Leaving during a pause and coming back within [ABANDON_WINDOW_MS] is a skip
  *    attempt: +[STRIKE_SECONDS] per strike, capped at [MAX_PENALTY_SECONDS].
- *  - Strikes clear after [STRIKE_RESET_MS] without a new one.
+ *    Strikes stack only while the user keeps abandoning; sitting through one
+ *    full pause pays the penalty off and resets it to zero.
+ *  - Choosing a diversion on the pause screen (breathe, focus, add a task) is
+ *    the behaviour we want, so leaving after that is never a skip attempt.
+ *  - Strikes also clear after [STRIKE_RESET_MS] without a new one.
  *
  * Time-sensitive comparisons for the session grace use elapsed-realtime (immune to
  * clock changes); persisted values use wall-clock so they survive reboots.
@@ -57,6 +61,9 @@ class GuardEngine(private val store: GuardStore) {
     /** Elapsed-realtime when the user left an unlocked session (0 = not left). */
     private var leftUnlockedAt = 0L
 
+    /** User picked a diversion during this pause; leaving now is not penalised. */
+    private var diverted = false
+
     /**
      * Call once when the service (re)connects. If a pause was running when the
      * process died, the user most likely killed us to get past it: treat that as
@@ -71,6 +78,7 @@ class GuardEngine(private val store: GuardStore) {
         inTarget = false
         lockShowing = false
         unlocked = false
+        diverted = false
         leftUnlockedAt = 0
     }
 
@@ -104,13 +112,20 @@ class GuardEngine(private val store: GuardStore) {
 
         if (lockShowing) {
             lockShowing = false
-            if (unlocked) {
+            when {
                 // Countdown was already done, they just never tapped Continue.
-                leftUnlockedAt = nowElapsed
-            } else {
-                store.timerStartedAt = 0
-                store.abandonedAt = nowWall
+                unlocked -> leftUnlockedAt = nowElapsed
+                // They chose to breathe / focus / add a task. That's a win.
+                diverted -> {
+                    store.timerStartedAt = 0
+                    store.abandonedAt = 0
+                }
+                else -> {
+                    store.timerStartedAt = 0
+                    store.abandonedAt = nowWall
+                }
             }
+            diverted = false
             return Decision.Hide
         }
 
@@ -118,9 +133,24 @@ class GuardEngine(private val store: GuardStore) {
         return Decision.None
     }
 
-    /** The countdown reached zero. Instagram is now allowed for this visit. */
+    /**
+     * The countdown reached zero. Instagram is now allowed for this visit, and
+     * any penalty has been served in full, so it is wiped.
+     */
     fun onCountdownFinished() {
         unlocked = true
+        store.timerStartedAt = 0
+        store.abandonedAt = 0
+        store.strikes = 0
+        store.lastStrikeAt = 0
+    }
+
+    /**
+     * The user picked a diversion (breathe, focus sprint, add a task). The lock
+     * stays up, but walking away from here is no longer a skip attempt.
+     */
+    fun onDiverted() {
+        diverted = true
         store.timerStartedAt = 0
         store.abandonedAt = 0
     }
@@ -139,6 +169,7 @@ class GuardEngine(private val store: GuardStore) {
     fun onCloseTarget(): Decision {
         lockShowing = false
         unlocked = false
+        diverted = false
         leftUnlockedAt = 0
         store.timerStartedAt = 0
         store.abandonedAt = 0
@@ -167,6 +198,7 @@ class GuardEngine(private val store: GuardStore) {
         store.timerStartedAt = nowWall
         lockShowing = true
         unlocked = false
+        diverted = false
         return Decision.Show(
             totalSeconds = baseSeconds.coerceAtLeast(1) + penalty,
             strikes = store.strikes,

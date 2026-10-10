@@ -1,5 +1,8 @@
 package com.dhruv.focusguard.ui.screens
 
+import com.dhruv.focusguard.ui.components.rememberResumeTick
+import com.dhruv.focusguard.guard.PrefsGuardStore
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -100,6 +103,11 @@ fun TaskListScreen(
                     title = greeting(),
                     subtitle = "Small steps create big changes."
                 )
+            }
+
+            // ── What FocusGuard did for you today ──────────────
+            item(key = "todayStats") {
+                TodayStrip()
             }
 
             // ── Today's focus ──────────────────────────────────
@@ -415,4 +423,38 @@ private fun countCompletedToday(tasks: List<Task>): Int {
         set(Calendar.MILLISECOND, 0)
     }.timeInMillis
     return tasks.count { (it.completedAt ?: 0L) >= start }
+}
+
+/**
+ * Today's numbers from the pause screen: how often Instagram was opened, how
+ * often you walked away, and focus minutes. Hidden until there's something to show.
+ */
+@Composable
+private fun TodayStrip() {
+    val c = MaterialTheme.mindful
+    val context = LocalContext.current
+    val resume = rememberResumeTick()
+    val store = remember { PrefsGuardStore(context) }
+    val opens = remember(resume) { store.opensToday }
+    val walked = remember(resume) { store.walkAwaysToday }
+    val focus = remember(resume) { store.focusMinutesToday }
+    if (opens == 0 && walked == 0 && focus == 0) return
+
+    Spacer(Modifier.height(Space.xs))
+    MindfulCard(modifier = Modifier.fillMaxWidth(), contentPadding = Space.sm) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            TodayStat(value = walked.toString(), label = "walked away", color = c.accentDeep, modifier = Modifier.weight(1f))
+            TodayStat(value = opens.toString(), label = "Instagram opens", color = c.textPrimary, modifier = Modifier.weight(1f))
+            TodayStat(value = "${focus}m", label = "focused", color = c.chipHighInk, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun TodayStat(value: String, label: String, color: androidx.compose.ui.graphics.Color, modifier: Modifier) {
+    val c = MaterialTheme.mindful
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.headlineSmall, color = color)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = c.textSecondary)
+    }
 }

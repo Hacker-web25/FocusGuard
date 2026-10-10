@@ -2,7 +2,12 @@ package com.dhruv.focusguard.ui.components
 
 import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
+import android.os.Build
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -449,18 +454,39 @@ fun CompletionToggle(
         label = "toggleRing"
     )
 
+    val view = LocalView.current
+    val pop by animateFloatAsState(
+        targetValue = if (completed) 1f else 0.92f,
+        animationSpec = spring(dampingRatio = 0.38f, stiffness = 520f),
+        label = "togglePop"
+    )
+
     Box(
         modifier = modifier
             .size(Sizes.touchTarget)
             .clickable(
                 role = Role.Checkbox,
-                onClick = onToggle
+                onClick = {
+                    // A crisp confirm when ticking off, a light tick when undoing.
+                    view.performHapticFeedback(
+                        if (!completed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            HapticFeedbackConstants.CONFIRM
+                        } else {
+                            HapticFeedbackConstants.CLOCK_TICK
+                        }
+                    )
+                    onToggle()
+                }
             ),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
                 .size(24.dp)
+                .graphicsLayer {
+                    scaleX = pop
+                    scaleY = pop
+                }
                 .clip(Radius.chip)
                 .background(fill)
                 .border(2.dp, ring, Radius.chip),

@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Haptics on the pause screen -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Restart the watchdog after reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Ask to be exempt from battery optimisation so the service is not killed -->

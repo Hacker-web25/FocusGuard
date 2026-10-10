@@ -17,6 +17,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -54,7 +55,7 @@ private const val ONBOARDING = "onboarding"
 private val fullScreenRoutes = setOf("add_task", "edit_task/{taskId}", ONBOARDING)
 
 @Composable
-fun AppNavGraph(viewModel: TaskViewModel) {
+fun AppNavGraph(viewModel: TaskViewModel, openAddTask: Boolean = false) {
     val c = MaterialTheme.mindful
     val navController = rememberNavController()
     val currentBackStack by navController.currentBackStackEntryAsState()
@@ -63,6 +64,11 @@ fun AppNavGraph(viewModel: TaskViewModel) {
     val startRoute = remember { if (viewModel.onboardingDone) Screen.Tasks.route else ONBOARDING }
     val context = LocalContext.current
     val protection = rememberProtectionState()
+
+    // Arriving from the pause screen's "Add a task": go straight to the form.
+    LaunchedEffect(openAddTask) {
+        if (openAddTask && viewModel.onboardingDone) navController.navigate("add_task")
+    }
 
     Scaffold(
         containerColor = c.canvas,

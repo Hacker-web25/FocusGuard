@@ -146,9 +146,9 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                     icon = Icons.Filled.Warning,
                     title = "Skip penalty",
                     subtitle = if (penalty > 0) {
-                        "+${penalty}s on every pause. Clears after 2 hours without skipping"
+                        "+${penalty}s on your next pause. Sit through it once and it's gone"
                     } else {
-                        "None. Leaving a pause early adds +5s next time (max +60s)"
+                        "None. Leaving a pause early adds +5s to the next one (max +60s)"
                     },
                     iconTint = c.chipHighInk,
                     iconBackground = c.chipHigh
