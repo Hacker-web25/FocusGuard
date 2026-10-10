@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Draw over other apps -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <!-- Restart service on boot -->
+    <!-- Restart the watchdog after reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Foreground service for overlay -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Ask to be exempt from battery optimisation so the service is not killed -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Optional, adb-granted only: lets the app switch its own service back on -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:name=".FocusGuardApp"
@@ -29,15 +31,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Fullscreen overlay activity (shown over Instagram) -->
-        <activity
-            android:name=".service.OverlayActivity"
-            android:excludeFromRecents="true"
-            android:exported="false"
-            android:launchMode="singleInstance"
-            android:taskAffinity=""
-            android:theme="@style/Theme.FocusGuard.Overlay" />
-
         <!-- Accessibility service to detect app launches -->
         <service
             android:name=".service.AppDetectorService"
@@ -51,14 +44,20 @@
                 android:resource="@xml/accessibility_config" />
         </service>
 
-        <!-- Boot receiver to ensure service restarts -->
+        <!-- Boot / update receiver: restart watchdog, repair service -->
         <receiver
             android:name=".receiver.BootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
+        <!-- Once-a-minute liveness check for the accessibility service -->
+        <receiver
+            android:name=".guard.WatchdogReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

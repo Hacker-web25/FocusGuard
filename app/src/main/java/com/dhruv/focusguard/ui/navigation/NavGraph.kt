@@ -18,6 +18,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -29,7 +31,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dhruv.focusguard.ui.screens.AddEditTaskScreen
+import com.dhruv.focusguard.ui.components.ProtectionBanner
+import com.dhruv.focusguard.ui.components.openAccessibilitySettings
+import com.dhruv.focusguard.ui.components.rememberProtectionState
 import com.dhruv.focusguard.ui.screens.GoalsScreen
+import com.dhruv.focusguard.ui.screens.OnboardingScreen
 import com.dhruv.focusguard.ui.screens.SettingsScreen
 import com.dhruv.focusguard.ui.screens.TaskListScreen
 import com.dhruv.focusguard.ui.theme.mindful
@@ -44,7 +50,8 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 private val bottomTabs = listOf(Screen.Tasks, Screen.Goals, Screen.Settings)
 
 /** Routes that are full-screen flows and hide the bottom bar. */
-private val fullScreenRoutes = setOf("add_task", "edit_task/{taskId}")
+private const val ONBOARDING = "onboarding"
+private val fullScreenRoutes = setOf("add_task", "edit_task/{taskId}", ONBOARDING)
 
 @Composable
 fun AppNavGraph(viewModel: TaskViewModel) {
@@ -52,10 +59,19 @@ fun AppNavGraph(viewModel: TaskViewModel) {
     val navController = rememberNavController()
     val currentBackStack by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStack?.destination?.route
-    val showBottomBar = currentRoute == null || currentRoute !in fullScreenRoutes
+    val showBottomBar = currentRoute != null && currentRoute !in fullScreenRoutes
+    val startRoute = remember { if (viewModel.onboardingDone) Screen.Tasks.route else ONBOARDING }
+    val context = LocalContext.current
+    val protection = rememberProtectionState()
 
     Scaffold(
         containerColor = c.canvas,
+        topBar = {
+            // Loud, persistent warning on the main tabs whenever the guard is down
+            if (showBottomBar && !protection.running) {
+                ProtectionBanner(onFix = { context.openAccessibilitySettings() })
+            }
+        },
         bottomBar = {
             if (showBottomBar) {
                 Box(modifier = Modifier.background(c.surface)) {
@@ -111,9 +127,20 @@ fun AppNavGraph(viewModel: TaskViewModel) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Tasks.route,
+            startDestination = startRoute,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(ONBOARDING) {
+                OnboardingScreen(
+                    viewModel = viewModel,
+                    onFinished = {
+                        navController.navigate(Screen.Tasks.route) {
+                            popUpTo(ONBOARDING) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
             composable(Screen.Tasks.route) {
                 TaskListScreen(
                     viewModel = viewModel,

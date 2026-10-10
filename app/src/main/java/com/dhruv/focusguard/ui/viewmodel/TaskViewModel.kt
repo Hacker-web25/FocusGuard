@@ -63,13 +63,13 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
         get() = repo.timerDurationSec
         set(value) { repo.timerDurationSec = value }
 
-    var cooldownMinutes: Int
-        get() = repo.cooldownMinutes
-        set(value) { repo.cooldownMinutes = value }
+    var userName: String
+        get() = repo.userName
+        set(value) { repo.userName = value }
 
-    var isInterceptionEnabled: Boolean
-        get() = repo.isInterceptionEnabled
-        set(value) { repo.isInterceptionEnabled = value }
+    var onboardingDone: Boolean
+        get() = repo.onboardingDone
+        set(value) { repo.onboardingDone = value }
 
     var monitoredApps: Set<String>
         get() = repo.monitoredApps

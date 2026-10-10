@@ -13,8 +13,20 @@ android {
         applicationId = "com.dhruv.focusguard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+    }
+
+    // A fixed debug key committed to the repo. Without it every GitHub Actions run
+    // signs with a fresh random key, so each new APK refuses to install over the
+    // last one and you lose your tasks and permissions on every update.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("focusguard-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {

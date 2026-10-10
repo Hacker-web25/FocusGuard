@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FocusGuard</string>
-    <string name="accessibility_description">FocusGuard monitors which app is in the foreground to show your task list when you open distracting apps like Instagram.</string>
+    <string name="accessibility_description">FocusGuard watches which app is on screen so it can pause Instagram with your tasks, and reads FocusGuard\'s own settings pages so it can stop them being switched off. Nothing leaves your phone.</string>
 </resources>

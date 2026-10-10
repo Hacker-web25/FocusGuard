@@ -3,17 +3,22 @@ package com.dhruv.focusguard.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import com.dhruv.focusguard.guard.Protection
+import com.dhruv.focusguard.guard.Watchdog
 
 /**
- * AccessibilityServices survive reboot automatically once enabled,
- * so this receiver is a no-op safety net for logging.
- * If you later add a foreground service, start it here.
+ * After boot or an app update, start the watchdog and repair the accessibility
+ * service if it did not come back on its own.
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d("FocusGuard", "Boot completed — accessibility service should auto-restart")
+        when (intent.action) {
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED -> {
+                val pending = goAsync()
+                Watchdog.schedule(context)
+                Protection.healIfNeeded(context) { pending.finish() }
+            }
         }
     }
 }

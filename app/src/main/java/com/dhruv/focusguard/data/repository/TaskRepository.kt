@@ -46,28 +46,18 @@ class TaskRepository(context: Context) {
         get() = prefs.getStringSet("monitored_apps", setOf("com.instagram.android")) ?: setOf("com.instagram.android")
         set(value) = prefs.edit().putStringSet("monitored_apps", value).apply()
 
-    /** Overlay timer duration in seconds */
+    /** Base pause length in seconds. Penalties for skip attempts are added on top. */
     var timerDurationSec: Int
         get() = prefs.getInt("timer_duration", 60)
         set(value) = prefs.edit().putInt("timer_duration", value).apply()
 
-    /** Cooldown in minutes — don't re-trigger within this window */
-    var cooldownMinutes: Int
-        get() = prefs.getInt("cooldown_minutes", 5)
-        set(value) = prefs.edit().putInt("cooldown_minutes", value).apply()
+    /** The user's first name, shown on the pause screen. */
+    var userName: String
+        get() = prefs.getString("user_name", "") ?: ""
+        set(value) = prefs.edit().putString("user_name", value.trim()).apply()
 
-    /** Whether the interception is enabled */
-    var isInterceptionEnabled: Boolean
-        get() = prefs.getBoolean("interception_enabled", true)
-        set(value) = prefs.edit().putBoolean("interception_enabled", value).apply()
-
-    /** Timestamp of last overlay shown */
-    var lastOverlayShownAt: Long
-        get() = prefs.getLong("last_overlay_shown", 0L)
-        set(value) = prefs.edit().putLong("last_overlay_shown", value).apply()
-
-    fun isCooldownActive(): Boolean {
-        val elapsed = System.currentTimeMillis() - lastOverlayShownAt
-        return elapsed < cooldownMinutes * 60_000L
-    }
+    /** True once first-run onboarding (name + permissions) has been completed. */
+    var onboardingDone: Boolean
+        get() = prefs.getBoolean("onboarding_done", false)
+        set(value) = prefs.edit().putBoolean("onboarding_done", value).apply()
 }
