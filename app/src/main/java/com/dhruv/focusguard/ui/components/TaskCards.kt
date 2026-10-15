@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -282,8 +283,8 @@ fun CheckRing(
 }
 
 /** Helper so the canvas above can scale around its own centre. */
-private inline fun DrawScope.scaleAround(factor: Float, block: DrawScope.() -> Unit) =
-    androidx.compose.ui.graphics.drawscope.scale(factor, factor, center) { block() }
+private inline fun DrawScope.scaleAround(factor: Float, crossinline block: DrawScope.() -> Unit) =
+    scale(factor, factor, center) { block() }
 
 // ── The hero card ──────────────────────────────────────────────
 
