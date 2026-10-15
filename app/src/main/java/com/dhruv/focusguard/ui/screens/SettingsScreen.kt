@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -89,7 +90,7 @@ import kotlinx.coroutines.delay
  * phone. Everything else lives under "Developer options".
  */
 @Composable
-fun SettingsScreen(viewModel: TaskViewModel) {
+fun SettingsScreen(viewModel: TaskViewModel, onOpenLimit: () -> Unit = {}) {
     val steps = rememberPermSteps()
     var devOpen by rememberSaveable { mutableStateOf(false) }
 
@@ -123,6 +124,9 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             PermissionList(steps)
 
             Spacer(Modifier.height(22.dp))
+            LimitRow(viewModel = viewModel, onOpen = onOpenLimit)
+
+            Spacer(Modifier.height(22.dp))
             TransparencyCard()
 
             Spacer(Modifier.height(22.dp))
@@ -130,7 +134,7 @@ fun SettingsScreen(viewModel: TaskViewModel) {
 
             Spacer(Modifier.height(20.dp))
             Text(
-                "FocusGuard 1.1 · Everything stays on this phone.",
+                "FocusGuard 1.3 · Everything stays on this phone.",
                 style = CalmText, fontSize = 12.sp, color = Calm.Faint, textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -370,4 +374,40 @@ private const val UNLOCK_WAIT_SECONDS = 60
 private fun formatMs(ms: Long): String {
     val s = (ms / 1000).toInt()
     return "%d:%02d".format(s / 60, s % 60)
+}
+
+/** Shortcut to the daily budget / cool-down page, which lives on the main screen. */
+@Composable
+private fun LimitRow(viewModel: TaskViewModel, onOpen: () -> Unit) {
+    val limit = viewModel.dailyLimitMinutes
+    val session = viewModel.sessionLimitMinutes
+    CalmCard {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .clickable(onClick = onOpen)
+                .padding(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Daily limit & cool-down", style = CalmText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    buildString {
+                        append(if (limit > 0) "$limit min a day" else "No daily limit")
+                        append(" · ")
+                        append(if (session > 0) "break after $session min" else "no cool-down")
+                    },
+                    style = CalmText, fontSize = 13.sp, color = Calm.Sub
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Calm.Faint,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
 }

@@ -37,6 +37,7 @@ import com.dhruv.focusguard.ui.components.openAccessibilitySettings
 import com.dhruv.focusguard.ui.components.rememberProtectionState
 import com.dhruv.focusguard.ui.screens.GoalsScreen
 import com.dhruv.focusguard.ui.screens.OnboardingScreen
+import com.dhruv.focusguard.ui.screens.LimitScreen
 import com.dhruv.focusguard.ui.screens.SettingsScreen
 import com.dhruv.focusguard.ui.screens.TaskListScreen
 import com.dhruv.focusguard.ui.theme.mindful
@@ -52,6 +53,9 @@ private val bottomTabs = listOf(Screen.Tasks, Screen.Goals, Screen.Settings)
 
 /** Routes that are full-screen flows and hide the bottom bar. */
 private const val ONBOARDING = "onboarding"
+
+/** The daily budget / cool-down page, opened from the Tasks screen. */
+const val LIMIT_ROUTE = "daily_limit"
 private val fullScreenRoutes = setOf("add_task", "edit_task/{taskId}", ONBOARDING)
 
 @Composable
@@ -160,8 +164,13 @@ fun AppNavGraph(
                 TaskListScreen(
                     viewModel = viewModel,
                     onAddTask = { navController.navigate("add_task") },
-                    onEditTask = { id -> navController.navigate("edit_task/$id") }
+                    onEditTask = { id -> navController.navigate("edit_task/$id") },
+                    onOpenLimit = { navController.navigate(LIMIT_ROUTE) }
                 )
+            }
+
+            composable(LIMIT_ROUTE) {
+                LimitScreen(viewModel = viewModel)
             }
 
             composable(Screen.Goals.route) {
@@ -169,7 +178,10 @@ fun AppNavGraph(
             }
 
             composable(Screen.Settings.route) {
-                SettingsScreen(viewModel = viewModel)
+                SettingsScreen(
+                    viewModel = viewModel,
+                    onOpenLimit = { navController.navigate(LIMIT_ROUTE) }
+                )
             }
 
             composable("add_task") {

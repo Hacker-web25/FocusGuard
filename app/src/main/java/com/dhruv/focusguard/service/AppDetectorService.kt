@@ -62,8 +62,13 @@ class AppDetectorService : AccessibilityService() {
     private var contentEventsOn = false
     private var lastTamperCheckAt = 0L
     private var lastTamperBlockAt = 0L
+    private var lastWindowsEvalAt = 0L
 
-    private val recheck = Runnable { evaluateForeground() }
+    private val recheck = Runnable {
+        lastWindowsEvalAt = SystemClock.elapsedRealtime()
+        evaluateForeground()
+    }
+    private val guardTick = Runnable { tickGuard() }
     private val recheckLate = Runnable { evaluateForeground() }
     private val audioRelease = Runnable { if (!overlay.isShowing) audio.restore() }
     private val closeHide = Runnable {
@@ -103,7 +108,17 @@ class AppDetectorService : AccessibilityService() {
                 scheduleTamperChecks(pkg)
             }
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
-                evaluateForeground()
+                // These arrive in bursts while an app is starting. Reading the
+                // window list is an IPC, so collapse a burst into one read
+                // shortly after it settles.
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastWindowsEvalAt < WINDOWS_DEBOUNCE_MS) {
+                    handler.removeCallbacks(recheck)
+                    handler.postDelayed(recheck, WINDOWS_DEBOUNCE_MS)
+                } else {
+                    lastWindowsEvalAt = now
+                    evaluateForeground()
+                }
                 scheduleTamperChecks(null)
             }
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> maybeCheckTamper(pkg)
@@ -154,7 +169,7 @@ class AppDetectorService : AccessibilityService() {
 
         val decision = engine.onForeground(
             isTarget = isTarget,
-            baseSeconds = repo.timerDurationSec,
+            limits = limits(),
             nowElapsed = now,
             nowWall = System.currentTimeMillis()
         )
@@ -185,6 +200,47 @@ class AppDetectorService : AccessibilityService() {
         return best?.root?.packageName?.toString()
     }
 
+    /** The user's current settings, read fresh so a change takes effect at once. */
+    private fun limits() = GuardEngine.Limits(
+        baseSeconds = repo.timerDurationSec,
+        dailyLimitMinutes = repo.dailyLimitMinutes,
+        sessionLimitMinutes = repo.sessionLimitMinutes,
+        cooldownMinutes = repo.cooldownMinutes
+    )
+
+    /**
+     * Two jobs, both cheap and both only while Instagram is actually on top:
+     * bill the time being used (so a limit reached mid-scroll bites there and
+     * then), and let a block go once its own countdown has run out.
+     */
+    private fun tickGuard() {
+        if (!::engine.isInitialized) return
+        val elapsed = SystemClock.elapsedRealtime()
+        val wall = System.currentTimeMillis()
+        val decision = if (engine.blockShowing) {
+            engine.onBlockExpired(limits(), elapsed, wall)
+        } else {
+            engine.onUsageTick(limits(), elapsed, wall)
+        }
+        applyDecision(decision)   // which also books the next check
+    }
+
+    /**
+     * Next check: exactly when the budget would run out, when a block lifts,
+     * or [GUARD_TICK_MS] from now — whichever comes first.
+     */
+    private fun scheduleGuardTick() {
+        handler.removeCallbacks(guardTick)
+        val wall = System.currentTimeMillis()
+        val delay = when {
+            engine.blockShowing -> (engine.blockUntilWall - wall + 300L)
+            engine.inTarget && engine.unlocked ->
+                engine.msUntilNextLimit(limits(), wall) + 250L
+            else -> return
+        }
+        handler.postDelayed(guardTick, delay.coerceIn(1_000L, GUARD_TICK_MS))
+    }
+
     private fun applyDecision(decision: GuardEngine.Decision) {
         when (decision) {
             is GuardEngine.Decision.Show -> {
@@ -208,12 +264,30 @@ class AppDetectorService : AccessibilityService() {
                 loadOverlayContent()
                 Log.i(TAG, "Locked: ${decision.totalSeconds}s (strikes=${decision.strikes})")
             }
+            is GuardEngine.Decision.Block -> {
+                // No countdown to wait out: Instagram simply isn't opening.
+                handler.removeCallbacks(closeHide)
+                audio.silence()
+                handler.removeCallbacks(audioRelease)
+                lastShowAt = SystemClock.elapsedRealtime()
+                overlay.showBlocked(
+                    reason = decision.reason,
+                    untilWall = decision.untilWall,
+                    usedMinutes = decision.usedMinutes,
+                    limitMinutes = decision.limitMinutes,
+                    userName = repo.userName,
+                    streak = store.streakDays()
+                )
+                loadOverlayContent()
+                Log.i(TAG, "Blocked: ${decision.reason} until ${decision.untilWall}")
+            }
             GuardEngine.Decision.Hide -> {
                 overlay.hide()
                 audio.restore()
             }
             GuardEngine.Decision.None -> Unit
         }
+        scheduleGuardTick()
     }
 
     private fun loadOverlayContent() {
@@ -230,7 +304,9 @@ class AppDetectorService : AccessibilityService() {
     private val pauseActions = object : PauseActions {
         override fun countdownFinished() = engine.onCountdownFinished()
 
-        override fun continueToInstagram() = applyDecision(engine.onContinue())
+        override fun continueToInstagram() = applyDecision(
+            engine.onContinue(SystemClock.elapsedRealtime(), System.currentTimeMillis())
+        )
 
         override fun diverted() = engine.onDiverted()
 
@@ -245,7 +321,7 @@ class AppDetectorService : AccessibilityService() {
             // Home first, while the pause still covers Instagram; then fade the
             // pause away over the home screen. Removing it first would flash
             // Instagram for a frame.
-            engine.onCloseTarget(SystemClock.elapsedRealtime())
+            engine.onCloseTarget(SystemClock.elapsedRealtime(), System.currentTimeMillis())
             performGlobalAction(GLOBAL_ACTION_HOME)
             handler.removeCallbacks(closeHide)
             handler.postDelayed(closeHide, 320)
@@ -282,7 +358,7 @@ class AppDetectorService : AccessibilityService() {
                 // The music app comes up over Instagram while the pause still
                 // covers it; then the pause fades away over the music app.
                 startActivity(intent)
-                engine.onCloseTarget(SystemClock.elapsedRealtime())
+                engine.onCloseTarget(SystemClock.elapsedRealtime(), System.currentTimeMillis())
                 handler.removeCallbacks(closeHide)
                 handler.postDelayed(closeHide, 450)
                 true
@@ -403,6 +479,12 @@ class AppDetectorService : AccessibilityService() {
 
     companion object {
         private const val TAG = "AppDetector"
+
+        /** Burst of window changes shorter than this is read once, at the end. */
+        private const val WINDOWS_DEBOUNCE_MS = 80L
+
+        /** Longest gap between guard checks while Instagram is on top. */
+        private const val GUARD_TICK_MS = 30_000L
 
         /** Window after locking during which a "left Instagram" reading must persist. */
         private const val SETTLE_MS = 2_500L

@@ -42,6 +42,7 @@ import androidx.core.graphics.drawable.toBitmap
 import com.dhruv.focusguard.data.model.Goal
 import com.dhruv.focusguard.data.model.Task
 import com.dhruv.focusguard.data.repository.TaskRepository
+import com.dhruv.focusguard.guard.GuardEngine
 import com.dhruv.focusguard.guard.Haptics
 import kotlinx.coroutines.delay
 import java.util.Calendar
@@ -50,7 +51,7 @@ import java.util.Calendar
 //  State + callbacks
 // ═════════════════════════════════════════════════════════════════
 
-enum class PauseMode { Pause, CalmOrb, Breathe, TinyWin, JustBe, Celebrate }
+enum class PauseMode { Pause, CalmOrb, Breathe, TinyWin, JustBe, Celebrate, Blocked }
 
 /** Everything the pause screen shows. Written by the service, read by Compose. */
 @Stable
@@ -76,6 +77,17 @@ class PauseState {
     var intentStage by mutableStateOf(IntentStage.Asking)
     /** Today's answers so far, by [Reason.key]. */
     var intentCounts by mutableStateOf<Map<String, Int>>(emptyMap())
+
+    // ── Hard limits (the block screen) ──────────────────────────
+    /** Non-null while Instagram is blocked outright rather than paused. */
+    var blockReason by mutableStateOf<GuardEngine.BlockReason?>(null)
+    /** Wall-clock when the block lifts. */
+    var blockUntilWall by mutableLongStateOf(0L)
+    /** How long the block runs in total, for the ring. */
+    var blockTotalMs by mutableLongStateOf(0L)
+    /** Minutes of the app used today, and the budget they were measured against. */
+    var usedMinutes by mutableIntStateOf(0)
+    var limitMinutes by mutableIntStateOf(0)
 }
 
 /** What the pause screen asks the service to do. All calls are on the main thread. */
@@ -121,17 +133,23 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
     ScaledToWidth {
         val backdrop = rememberBackdrop()
         var screen by remember { mutableStateOf(Size(1080f, 2400f)) }
-        var remainingMs by remember { mutableLongStateOf(state.totalMs) }
+        // Updated ten times a second, but handed down as a lambda: only the
+        // digits and the bars read it, and they read it while drawing.
+        val remainingMs = remember { mutableLongStateOf(state.totalMs) }
+        // One stable reader handed down the tree, so the derived values below
+        // it are only ever set up once.
+        val remaining = remember { { remainingMs.longValue } }
         val appIcon = rememberAppIcon(TARGET_PACKAGE)
 
         // One clock drives the countdown, its last-five-seconds haptic ticks
-        // and the finish thud.
-        LaunchedEffect(state.deadlineElapsed) {
+        // and the finish thud. A blocked screen has no countdown to run.
+        LaunchedEffect(state.deadlineElapsed, state.blockReason) {
+            if (state.blockReason != null) return@LaunchedEffect
             haptics.thud()
             var lastWhole = -1L
             while (true) {
                 val rem = (state.deadlineElapsed - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
-                remainingMs = rem
+                remainingMs.longValue = rem
                 val whole = (rem + 999) / 1000
                 if (whole != lastWhole) {
                     if (lastWhole != -1L && whole in 1L..5L && state.mode == PauseMode.Pause) haptics.tick()
@@ -158,6 +176,10 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
             state.mode = PauseMode.Celebrate
         }
 
+        // Where Back from a mode goes: the block screen if Instagram is blocked
+        // outright, otherwise the pause itself.
+        val homeMode = if (state.blockReason != null) PauseMode.Blocked else PauseMode.Pause
+
         fun divert(mode: PauseMode) {
             actions.diverted()
             state.mode = mode
@@ -174,9 +196,14 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
             }
         }
 
+        // The sky and its frosted copy, painted once per screen size and
+        // shared by the background and every glass card.
+        val raster = rememberBackdropRaster(backdrop, screen)
+
         CompositionLocalProvider(
             LocalBackdrop provides backdrop,
             LocalScreenSize provides screen,
+            LocalRaster provides raster,
             LocalTextStyle provides BaseText
         ) {
             Box(
@@ -192,7 +219,7 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
                         PauseMode.Pause -> Box(Modifier.fillMaxSize()) {
                           PauseHome(
                             state = state,
-                            remainingMs = remainingMs,
+                            remaining = remaining,
                             appIcon = appIcon,
                             haptics = haptics,
                             onContinue = { actions.continueToInstagram() },
@@ -258,13 +285,13 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
                             name = state.userName,
                             haptics = haptics,
                             onWalkAway = { walkAway("Calmer now.") },
-                            onBack = { haptics.click(); state.mode = PauseMode.Pause }
+                            onBack = { haptics.click(); state.mode = homeMode }
                         )
 
                         PauseMode.Breathe -> BreatheMode(
                             haptics = haptics,
                             onWalkAway = { walkAway("Better than a reel.") },
-                            onBack = { haptics.click(); state.mode = PauseMode.Pause }
+                            onBack = { haptics.click(); state.mode = homeMode }
                         )
 
                         PauseMode.TinyWin -> TinyWinMode(
@@ -280,13 +307,28 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
                                 actions.recordFocus(minutes)
                                 walkAway("Five minutes, won.")
                             },
-                            onBack = { haptics.click(); state.mode = PauseMode.Pause }
+                            onBack = { haptics.click(); state.mode = homeMode }
                         )
 
                         PauseMode.JustBe -> JustBeMode(
                             haptics = haptics,
                             onWalkAway = { walkAway("That was yours.") },
-                            onBack = { haptics.click(); state.mode = PauseMode.Pause }
+                            onBack = { haptics.click(); state.mode = homeMode }
+                        )
+
+                        PauseMode.Blocked -> BlockedScreen(
+                            state = state,
+                            haptics = haptics,
+                            onStartTask = { task ->
+                                state.focusTask = task
+                                actions.diverted()
+                                state.mode = PauseMode.TinyWin
+                            },
+                            onBreathe = {
+                                actions.diverted()
+                                state.mode = PauseMode.Breathe
+                            },
+                            onClose = { walkAway("Good call.") }
                         )
 
                         PauseMode.Celebrate -> CelebrateMode(
@@ -310,7 +352,7 @@ fun PauseScreen(state: PauseState, actions: PauseActions, haptics: Haptics) {
 @Composable
 private fun PauseHome(
     state: PauseState,
-    remainingMs: Long,
+    remaining: () -> Long,
     appIcon: ImageBitmap?,
     haptics: Haptics,
     onContinue: () -> Unit,
@@ -354,7 +396,7 @@ private fun PauseHome(
                 TimerAndBubble(
                     name = state.userName,
                     appIcon = appIcon,
-                    remainingMs = remainingMs,
+                    remaining = remaining,
                     totalMs = state.totalMs,
                     finished = state.finished,
                     haptics = haptics
@@ -403,7 +445,7 @@ private fun PauseHome(
         ) {
             BottomActions(
                 unlocked = state.finished,
-                remainingLabel = clockLabel(remainingMs),
+                remaining = remaining,
                 appIcon = appIcon,
                 haptics = haptics,
                 onContinue = onContinue,

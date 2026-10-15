@@ -71,6 +71,21 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
         get() = repo.onboardingDone
         set(value) { repo.onboardingDone = value }
 
+    /** Daily budget in minutes; 0 = off. */
+    var dailyLimitMinutes: Int
+        get() = repo.dailyLimitMinutes
+        set(value) { repo.dailyLimitMinutes = value }
+
+    /** Unbroken minutes of use that trigger a cool-down; 0 = off. */
+    var sessionLimitMinutes: Int
+        get() = repo.sessionLimitMinutes
+        set(value) { repo.sessionLimitMinutes = value }
+
+    /** How long that cool-down lasts. */
+    var cooldownMinutes: Int
+        get() = repo.cooldownMinutes
+        set(value) { repo.cooldownMinutes = value }
+
     var widgetPromoDismissed: Boolean
         get() = repo.widgetPromoDismissed
         set(value) { repo.widgetPromoDismissed = value }

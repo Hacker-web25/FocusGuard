@@ -44,6 +44,45 @@ class PrefsGuardStore(context: Context) : GuardStore {
         get() = prefs.getBoolean(KEY_AUTOSTART_OK, false)
         set(value) { prefs.edit().putBoolean(KEY_AUTOSTART_OK, value).apply() }
 
+    // ── Usage budget ────────────────────────────────────────────
+
+    override var usedTodayMs: Long
+        get() = prefs.getLong(KEY_USED_MS, 0L)
+        set(value) { prefs.edit().putLong(KEY_USED_MS, value).commit() }
+
+    override var sessionMs: Long
+        get() = prefs.getLong(KEY_SESSION_MS, 0L)
+        set(value) { prefs.edit().putLong(KEY_SESSION_MS, value).commit() }
+
+    override var lastUsageAt: Long
+        get() = prefs.getLong(KEY_LAST_USAGE, 0L)
+        set(value) { prefs.edit().putLong(KEY_LAST_USAGE, value).commit() }
+
+    override var usageOpenAt: Long
+        get() = prefs.getLong(KEY_USAGE_OPEN, 0L)
+        set(value) { prefs.edit().putLong(KEY_USAGE_OPEN, value).commit() }
+
+    override var cooldownUntil: Long
+        get() = prefs.getLong(KEY_COOLDOWN, 0L)
+        set(value) { prefs.edit().putLong(KEY_COOLDOWN, value).commit() }
+
+    /**
+     * Today's usage is stamped with the day it belongs to, so a budget resets
+     * at local midnight on its own, with no alarm to fire.
+     */
+    override fun rollOverIfNewDay(nowWall: Long) {
+        val today = dayKey(nowWall)
+        if (prefs.getString(KEY_USAGE_DAY, "") == today) return
+        prefs.edit()
+            .putString(KEY_USAGE_DAY, today)
+            .putLong(KEY_USED_MS, 0L)
+            .putLong(KEY_SESSION_MS, 0L)
+            .commit()
+    }
+
+    private fun dayKey(millis: Long): String =
+        java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date(millis))
+
     /** True while we have muted the media stream; lets a restarted service undo it. */
     var mutedByUs: Boolean
         get() = prefs.getBoolean(KEY_MUTED, false)
@@ -161,6 +200,12 @@ class PrefsGuardStore(context: Context) : GuardStore {
         private const val KEY_AUTOSTART_OK = "autostart_confirmed"
         private const val KEY_INTENT_DAY = "intent_day"
         private const val KEY_INTENTS = "intent_counts"
+        private const val KEY_USAGE_DAY = "usage_day"
+        private const val KEY_USED_MS = "used_today_ms"
+        private const val KEY_SESSION_MS = "session_ms"
+        private const val KEY_LAST_USAGE = "last_usage_at"
+        private const val KEY_USAGE_OPEN = "usage_open_at"
+        private const val KEY_COOLDOWN = "cooldown_until"
 
         /** How long a maintenance unlock lasts. */
         const val TAMPER_UNLOCK_MS = 5 * 60_000L

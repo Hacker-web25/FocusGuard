@@ -3,16 +3,12 @@ package com.dhruv.focusguard.ui.screens
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.Widgets
-import androidx.compose.ui.graphics.Color
-import com.dhruv.focusguard.ui.components.PrimaryButton
-import com.dhruv.focusguard.ui.components.SecondaryButton
-import com.dhruv.focusguard.widget.TaskWidget
-import com.dhruv.focusguard.widget.TaskWidgetProvider
-import com.dhruv.focusguard.ui.components.rememberResumeTick
-import com.dhruv.focusguard.guard.PrefsGuardStore
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,68 +25,113 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dhruv.focusguard.data.model.Task
-import com.dhruv.focusguard.ui.components.BotanicalHeader
-import com.dhruv.focusguard.ui.components.CompletionToggle
-import com.dhruv.focusguard.ui.components.EmptyState
+import com.dhruv.focusguard.guard.GuardEngine
+import com.dhruv.focusguard.guard.Haptics
+import com.dhruv.focusguard.guard.PrefsGuardStore
+import com.dhruv.focusguard.ui.components.FocusSprintDialog
+import com.dhruv.focusguard.ui.components.HeroTaskCard
+import com.dhruv.focusguard.ui.components.ListHeading
 import com.dhruv.focusguard.ui.components.MindfulCard
-import com.dhruv.focusguard.ui.components.MindfulProgress
-import com.dhruv.focusguard.ui.components.PriorityBadge
-import com.dhruv.focusguard.ui.components.PriorityDot
-import com.dhruv.focusguard.ui.components.ScreenHeader
-import com.dhruv.focusguard.ui.components.SectionLabel
-import com.dhruv.focusguard.ui.components.priorityDotColor
+import com.dhruv.focusguard.ui.components.PrimaryButton
+import com.dhruv.focusguard.ui.components.SecondaryButton
+import com.dhruv.focusguard.ui.components.TaskListRow
+import com.dhruv.focusguard.ui.components.TodayCard
+import com.dhruv.focusguard.ui.components.byUrgency
+import com.dhruv.focusguard.ui.components.rememberResumeTick
+import com.dhruv.focusguard.ui.theme.PureWhite
 import com.dhruv.focusguard.ui.theme.Radius
 import com.dhruv.focusguard.ui.theme.Sizes
 import com.dhruv.focusguard.ui.theme.Space
 import com.dhruv.focusguard.ui.theme.mindful
 import com.dhruv.focusguard.ui.viewmodel.TaskViewModel
+import com.dhruv.focusguard.widget.TaskWidget
+import com.dhruv.focusguard.widget.TaskWidgetProvider
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 /**
- * Tasks — the app's landing space.
+ * Tasks — the app's landing space, and its main menu.
  *
- * Opens with a gentle greeting and today's single most important task, then
- * the full list. All task data and every action come straight from the
- * view model; nothing here is hardcoded.
+ * Opens with today's shape (what's done, what Instagram has cost you), then
+ * the single most pressing task at full size, then the list. Urgency is
+ * carried by colour and weight rather than by shouting, and ticking anything
+ * off is meant to feel worth doing.
  */
 @Composable
 fun TaskListScreen(
     viewModel: TaskViewModel,
     onAddTask: () -> Unit,
-    onEditTask: (Long) -> Unit
+    onEditTask: (Long) -> Unit,
+    onOpenLimit: () -> Unit = {}
 ) {
     val c = MaterialTheme.mindful
+    val context = LocalContext.current
+    val haptics = remember { Haptics(context) }
     val activeTasks by viewModel.activeTasks.collectAsState()
     val completedTasks by viewModel.completedTasks.collectAsState()
     var showCompleted by remember { mutableStateOf(false) }
+    var sprintTask by remember { mutableStateOf<Task?>(null) }
 
-    val focusTask = activeTasks.firstOrNull()
+    // Re-read the guard's own counters whenever we come back to the screen.
+    val resume = rememberResumeTick()
+    val store = remember { PrefsGuardStore(context) }
+    val engine = remember { GuardEngine(store) }
+    val stats = remember(resume, activeTasks, completedTasks) {
+        val now = System.currentTimeMillis()
+        DayStats(
+            walkedAway = store.walkAwaysToday,
+            focusMinutes = store.focusMinutesToday,
+            streak = store.streakDays(),
+            instagramMinutes = engine.usedTodayMinutes(now)
+        )
+    }
+
+    val now = remember(resume, activeTasks) { System.currentTimeMillis() }
+    val sorted = remember(activeTasks, now) { byUrgency(activeTasks) }
+    val hero = sorted.firstOrNull()
+    val rest = remember(sorted) { sorted.drop(1) }
     val completedToday = remember(completedTasks) { countCompletedToday(completedTasks) }
     val dayTotal = completedToday + activeTasks.size
+
+    sprintTask?.let { task ->
+        FocusSprintDialog(
+            task = task,
+            haptics = haptics,
+            onFinished = { minutes, completed ->
+                store.recordFocusMinutes(minutes)
+                if (completed) viewModel.toggleComplete(task)
+                sprintTask = null
+            },
+            onDismiss = { sprintTask = null }
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -109,15 +150,35 @@ fun TaskListScreen(
         ) {
             // ── Greeting ───────────────────────────────────────
             item(key = "greeting") {
-                ScreenHeader(
-                    title = greeting(),
-                    subtitle = "Small steps create big changes."
-                )
+                Column {
+                    Text(
+                        dateLine(),
+                        style = MaterialTheme.typography.labelMedium,
+                        letterSpacing = 1.2.sp,
+                        color = c.textSecondary
+                    )
+                    Spacer(Modifier.height(Space.xxs))
+                    Text(
+                        greeting(viewModel.userName),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = c.textPrimary
+                    )
+                }
             }
 
-            // ── What FocusGuard did for you today ──────────────
-            item(key = "todayStats") {
-                TodayStrip()
+            // ── Today at a glance, plus the Instagram budget ────
+            item(key = "today") {
+                TodayCard(
+                    done = completedToday,
+                    total = dayTotal,
+                    walkedAway = stats.walkedAway,
+                    focusMinutes = stats.focusMinutes,
+                    instagramMinutes = stats.instagramMinutes,
+                    limitMinutes = viewModel.dailyLimitMinutes,
+                    streak = stats.streak,
+                    onOpenLimit = onOpenLimit
+                )
             }
 
             // ── Put the list on the home screen (until placed or dismissed) ──
@@ -125,53 +186,34 @@ fun TaskListScreen(
                 WidgetPromo(viewModel)
             }
 
-            // ── Today's focus ──────────────────────────────────
-            item(key = "focus") {
-                Spacer(Modifier.height(Space.xxs))
-                TodaysFocusCard(
-                    task = focusTask,
-                    completedToday = completedToday,
-                    dayTotal = dayTotal,
-                    onOpen = { focusTask?.let { onEditTask(it.id) } },
-                    onToggle = { focusTask?.let { viewModel.toggleComplete(it) } }
+            // ── The one that matters most ──────────────────────
+            item(key = "hero") {
+                HeroTaskCard(
+                    task = hero,
+                    now = now,
+                    haptics = haptics,
+                    onOpen = { hero?.let { onEditTask(it.id) } },
+                    onComplete = { hero?.let { viewModel.toggleComplete(it) } },
+                    onStartFocus = { hero?.let { sprintTask = it } },
+                    onAdd = onAddTask
                 )
             }
 
-            // ── List heading ───────────────────────────────────
-            item(key = "listHeading") {
-                Spacer(Modifier.height(Space.xs))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SectionLabel("Your tasks", modifier = Modifier.weight(1f))
-                    if (activeTasks.isNotEmpty()) {
-                        Text(
-                            text = "${activeTasks.size} open",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = c.textSecondary
-                        )
-                    }
+            // ── The rest of the list ───────────────────────────
+            if (rest.isNotEmpty()) {
+                item(key = "listHeading") {
+                    Spacer(Modifier.height(Space.xxs))
+                    ListHeading("Then", "${rest.size} more")
                 }
-            }
-
-            if (activeTasks.isEmpty()) {
-                item(key = "empty") {
-                    EmptyState(
-                        title = "Nothing on your list",
-                        message = "Add what matters today, and it'll be waiting for you the next time you reach for a distraction.",
-                        actionLabel = "Add your first task",
-                        onAction = onAddTask
+                items(rest, key = { "task-${it.id}" }) { task ->
+                    TaskListRow(
+                        task = task,
+                        now = now,
+                        haptics = haptics,
+                        onToggle = { viewModel.toggleComplete(task) },
+                        onClick = { onEditTask(task.id) }
                     )
                 }
-            }
-
-            items(activeTasks, key = { "task-${it.id}" }) { task ->
-                TaskRow(
-                    task = task,
-                    onToggle = { viewModel.toggleComplete(task) },
-                    onClick = { onEditTask(task.id) }
-                )
             }
 
             // ── Completed ──────────────────────────────────────
@@ -182,12 +224,15 @@ fun TaskListScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(Radius.field)
-                            .clickable { showCompleted = !showCompleted }
+                            .clickable {
+                                haptics.tick()
+                                showCompleted = !showCompleted
+                            }
                             .padding(vertical = Space.xs, horizontal = Space.xxs),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Completed",
+                            text = "Done",
                             style = MaterialTheme.typography.titleSmall,
                             color = c.textSecondary,
                             modifier = Modifier.weight(1f)
@@ -211,8 +256,10 @@ fun TaskListScreen(
 
                 if (showCompleted) {
                     items(completedTasks, key = { "done-${it.id}" }) { task ->
-                        TaskRow(
+                        TaskListRow(
                             task = task,
+                            now = now,
+                            haptics = haptics,
                             onToggle = { viewModel.toggleComplete(task) },
                             onClick = { onEditTask(task.id) }
                         )
@@ -222,9 +269,12 @@ fun TaskListScreen(
         }
 
         FloatingActionButton(
-            onClick = onAddTask,
+            onClick = {
+                haptics.click()
+                onAddTask()
+            },
             containerColor = c.accentDeep,
-            contentColor = com.dhruv.focusguard.ui.theme.PureWhite,
+            contentColor = PureWhite,
             shape = Radius.button,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -235,182 +285,31 @@ fun TaskListScreen(
     }
 }
 
-/**
- * The one card that answers "what should I do next?".
- * Falls back to a calm all-clear state when nothing is pending.
- */
-@Composable
-private fun TodaysFocusCard(
-    task: Task?,
-    completedToday: Int,
-    dayTotal: Int,
-    onOpen: () -> Unit,
-    onToggle: () -> Unit
-) {
-    val c = MaterialTheme.mindful
-
-    MindfulCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = Radius.cardLarge,
-        contentPadding = 0.dp
-    ) {
-        BotanicalHeader(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(108.dp)
-        )
-
-        Column(modifier = Modifier.padding(Space.md)) {
-            SectionLabel("Today's focus")
-            Spacer(Modifier.height(Space.xs))
-
-            if (task != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CompletionToggle(
-                        completed = false,
-                        accent = priorityDotColor(task.priority),
-                        onToggle = onToggle,
-                        contentDescription = "Mark ${task.title} complete",
-                        modifier = Modifier.padding(end = Space.xxs)
-                    )
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(Radius.field)
-                            .clickable(onClick = onOpen)
-                            .padding(vertical = Space.xxs)
-                    ) {
-                        Text(
-                            text = task.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = c.textPrimary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        task.deadline?.let { due ->
-                            Text(
-                                text = deadlineLabel(due),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (due < System.currentTimeMillis()) c.danger else c.textSecondary
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(Space.xs))
-                    PriorityBadge(task.priority)
-                }
-            } else {
-                Text(
-                    text = "You're all caught up",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = c.textPrimary
-                )
-                Text(
-                    text = "Nothing is waiting on you right now.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = c.textSecondary
-                )
-            }
-
-            if (dayTotal > 0) {
-                Spacer(Modifier.height(Space.sm))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    MindfulProgress(
-                        progress = completedToday.toFloat() / dayTotal,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(Modifier.width(Space.sm))
-                    Text(
-                        text = "$completedToday of $dayTotal done",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = c.textSecondary
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** One task in the list. Compact, scannable, never a promotional card. */
-@Composable
-private fun TaskRow(
-    task: Task,
-    onToggle: () -> Unit,
-    onClick: () -> Unit
-) {
-    val c = MaterialTheme.mindful
-    val dot = priorityDotColor(task.priority)
-    val overdue = !task.isCompleted && task.deadline != null &&
-        task.deadline!! < System.currentTimeMillis()
-
-    MindfulCard(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = Space.xs
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            CompletionToggle(
-                completed = task.isCompleted,
-                accent = dot,
-                onToggle = onToggle,
-                contentDescription = if (task.isCompleted) {
-                    "Mark ${task.title} not done"
-                } else {
-                    "Mark ${task.title} done"
-                }
-            )
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(Radius.field)
-                    .clickable(onClick = onClick)
-                    .padding(vertical = Space.xs, horizontal = Space.xxs)
-            ) {
-                Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (task.isCompleted) c.textSecondary else c.textPrimary,
-                    textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (task.description.isNotBlank()) {
-                    Text(
-                        text = task.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = c.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                task.deadline?.let { due ->
-                    Text(
-                        text = deadlineLabel(due),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (overdue) c.danger else c.textSecondary
-                    )
-                }
-            }
-
-            Spacer(Modifier.width(Space.xxs))
-            PriorityDot(task.priority)
-            Spacer(Modifier.width(Space.sm))
-        }
-    }
-}
+/** The guard's own numbers for today, read together so they stay in step. */
+private data class DayStats(
+    val walkedAway: Int,
+    val focusMinutes: Int,
+    val streak: Int,
+    val instagramMinutes: Int
+)
 
 // ── Helpers ────────────────────────────────────────────────────
 
-/** Time-of-day greeting. Derived from the clock, not stored anywhere. */
-private fun greeting(): String {
+/** Time-of-day greeting, with the user's name once we know it. */
+private fun greeting(name: String): String {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return when {
-        hour < 5 -> "Still up?"
+    val base = when {
+        hour < 5 -> "Still up"
         hour < 12 -> "Good morning"
         hour < 17 -> "Good afternoon"
         hour < 21 -> "Good evening"
         else -> "Winding down"
     }
+    return if (name.isBlank()) base else "$base, $name"
 }
+
+private fun dateLine(): String =
+    SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()).uppercase(Locale.getDefault())
 
 /** Human deadline label: Today / Tomorrow / Mon, Jan 5. */
 internal fun deadlineLabel(millis: Long): String {
@@ -440,40 +339,6 @@ private fun countCompletedToday(tasks: List<Task>): Int {
     return tasks.count { (it.completedAt ?: 0L) >= start }
 }
 
-/**
- * Today's numbers from the pause screen: how often Instagram was opened, how
- * often you walked away, and focus minutes. Hidden until there's something to show.
- */
-@Composable
-private fun TodayStrip() {
-    val c = MaterialTheme.mindful
-    val context = LocalContext.current
-    val resume = rememberResumeTick()
-    val store = remember { PrefsGuardStore(context) }
-    val opens = remember(resume) { store.opensToday }
-    val walked = remember(resume) { store.walkAwaysToday }
-    val focus = remember(resume) { store.focusMinutesToday }
-    if (opens == 0 && walked == 0 && focus == 0) return
-
-    Spacer(Modifier.height(Space.xs))
-    MindfulCard(modifier = Modifier.fillMaxWidth(), contentPadding = Space.sm) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            TodayStat(value = walked.toString(), label = "walked away", color = c.accentDeep, modifier = Modifier.weight(1f))
-            TodayStat(value = opens.toString(), label = "Instagram opens", color = c.textPrimary, modifier = Modifier.weight(1f))
-            TodayStat(value = "${focus}m", label = "focused", color = c.chipHighInk, modifier = Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun TodayStat(value: String, label: String, color: androidx.compose.ui.graphics.Color, modifier: Modifier) {
-    val c = MaterialTheme.mindful
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.headlineSmall, color = color)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = c.textSecondary)
-    }
-}
-
 // ── Home-screen widget card ────────────────────────────────────
 
 /**
@@ -490,57 +355,62 @@ private fun WidgetPromo(viewModel: TaskViewModel) {
     var dismissed by remember { mutableStateOf(viewModel.widgetPromoDismissed) }
     var asked by remember { mutableStateOf(false) }
     val placed = remember(resume) { TaskWidget.placedIds(context).isNotEmpty() }
-    if (dismissed || placed) return
 
-    MindfulCard(
-        modifier = Modifier.fillMaxWidth(),
-        background = c.lavender.copy(alpha = if (c.isDark) 0.18f else 0.55f),
-        borderColor = Color.Transparent
+    AnimatedVisibility(
+        visible = !dismissed && !placed,
+        enter = fadeIn(tween(240)) + expandVertically(tween(240)),
+        exit = fadeOut(tween(200)) + shrinkVertically(tween(200))
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(c.surface),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.Widgets, contentDescription = null, tint = c.accentDeep)
+        MindfulCard(
+            modifier = Modifier.fillMaxWidth(),
+            background = c.lavender.copy(alpha = if (c.isDark) 0.18f else 0.55f),
+            borderColor = Color.Transparent
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(c.surface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Widgets, contentDescription = null, tint = c.accentDeep)
+                }
+                Spacer(Modifier.width(Space.sm))
+                Column(Modifier.weight(1f)) {
+                    Text("Your list on the home screen", style = MaterialTheme.typography.titleSmall, color = c.textPrimary)
+                    Text(
+                        "See what's urgent before you open anything. Tick tasks off and add new ones right there.",
+                        style = MaterialTheme.typography.bodySmall, color = c.textSecondary
+                    )
+                }
             }
-            Spacer(Modifier.width(Space.sm))
-            Column(Modifier.weight(1f)) {
-                Text("Your list on the home screen", style = MaterialTheme.typography.titleSmall, color = c.textPrimary)
+            if (asked) {
+                Spacer(Modifier.height(Space.xs))
                 Text(
-                    "See what's urgent before you open anything. Tick tasks off and add new ones right there.",
-                    style = MaterialTheme.typography.bodySmall, color = c.textSecondary
+                    "Nothing popped up? Long-press an empty spot on your home screen, tap Widgets, find FocusGuard and drag it out.",
+                    style = MaterialTheme.typography.bodySmall, color = c.textPrimary
                 )
             }
-        }
-        if (asked) {
-            Spacer(Modifier.height(Space.xs))
-            Text(
-                "Nothing popped up? Long-press an empty spot on your home screen, tap Widgets, find FocusGuard and drag it out.",
-                style = MaterialTheme.typography.bodySmall, color = c.textPrimary
-            )
-        }
-        Spacer(Modifier.height(Space.sm))
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
-            PrimaryButton(
-                text = "Add widget",
-                onClick = {
-                    asked = true
-                    requestPinWidget(context)
-                },
-                modifier = Modifier.weight(1f)
-            )
-            SecondaryButton(
-                text = "Not now",
-                onClick = {
-                    viewModel.widgetPromoDismissed = true
-                    dismissed = true
-                },
-                modifier = Modifier.weight(1f)
-            )
+            Spacer(Modifier.height(Space.sm))
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
+                PrimaryButton(
+                    text = "Add widget",
+                    onClick = {
+                        asked = true
+                        requestPinWidget(context)
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                SecondaryButton(
+                    text = "Not now",
+                    onClick = {
+                        viewModel.widgetPromoDismissed = true
+                        dismissed = true
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }

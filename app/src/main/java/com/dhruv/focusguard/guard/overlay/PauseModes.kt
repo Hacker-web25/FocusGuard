@@ -179,7 +179,7 @@ fun CalmOrbMode(name: String, haptics: Haptics, onWalkAway: () -> Unit, onBack: 
             GlowBubble(
                 diameter = 168.dp,
                 haptics = haptics,
-                progress = progress,
+                progress = { progress },
                 finished = done,
                 lookAtTimer = false
             )
@@ -237,7 +237,7 @@ fun BreatheMode(haptics: Haptics, onWalkAway: () -> Unit, onBack: () -> Unit) {
         GlowBubble(
             diameter = 170.dp,
             haptics = haptics,
-            breath = scale.value,
+            breath = { scale.value },
             finished = done,
             lookAtTimer = false
         )
@@ -397,7 +397,7 @@ fun CelebrateMode(title: String, body: String, streak: Int, haptics: Haptics, on
         verticalArrangement = Arrangement.Center
     ) {
         Box(Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value }) {
-            GlowBubble(diameter = 150.dp, haptics = haptics, progress = 1f, finished = true, lookAtTimer = false)
+            GlowBubble(diameter = 150.dp, haptics = haptics, progress = { 1f }, finished = true, lookAtTimer = false)
         }
         Spacer(Modifier.height(8.dp))
         Text(title, style = OnSky, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)

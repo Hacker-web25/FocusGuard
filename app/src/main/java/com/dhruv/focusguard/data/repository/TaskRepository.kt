@@ -73,6 +73,24 @@ class TaskRepository(context: Context) {
         get() = prefs.getInt("timer_duration", 60)
         set(value) = prefs.edit().putInt("timer_duration", value).apply()
 
+    /**
+     * Optional daily budget for the monitored app, in minutes. 0 = no budget.
+     * Once it is spent, the app does not open again until midnight.
+     */
+    var dailyLimitMinutes: Int
+        get() = prefs.getInt("daily_limit_minutes", 0)
+        set(value) = prefs.edit().putInt("daily_limit_minutes", value.coerceIn(0, 480)).apply()
+
+    /** Unbroken minutes of use that earn a cool-down. 0 = off. */
+    var sessionLimitMinutes: Int
+        get() = prefs.getInt("session_limit_minutes", DEFAULT_SESSION_LIMIT)
+        set(value) = prefs.edit().putInt("session_limit_minutes", value.coerceIn(0, 120)).apply()
+
+    /** How long that cool-down lasts, in minutes. */
+    var cooldownMinutes: Int
+        get() = prefs.getInt("cooldown_minutes", DEFAULT_COOLDOWN)
+        set(value) = prefs.edit().putInt("cooldown_minutes", value.coerceIn(1, 120)).apply()
+
     /** The user's first name, shown on the pause screen. */
     var userName: String
         get() = prefs.getString("user_name", "") ?: ""
@@ -96,5 +114,11 @@ class TaskRepository(context: Context) {
     companion object {
         /** Goal progress gained per finished task linked to that goal. */
         const val GOAL_STEP_PER_TASK = 5
+
+        /** Unbroken minutes before a cool-down, out of the box. */
+        const val DEFAULT_SESSION_LIMIT = 10
+
+        /** How long the cool-down lasts, out of the box. */
+        const val DEFAULT_COOLDOWN = 5
     }
 }

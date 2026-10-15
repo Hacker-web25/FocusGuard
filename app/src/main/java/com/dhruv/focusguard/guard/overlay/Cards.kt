@@ -56,6 +56,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -74,6 +77,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -286,13 +290,15 @@ private fun FlameMascot(modifier: Modifier) {
 fun TimerAndBubble(
     name: String,
     appIcon: ImageBitmap?,
-    remainingMs: Long,
+    remaining: () -> Long,
     totalMs: Long,
     finished: Boolean,
     haptics: Haptics
 ) {
-    val progress = if (totalMs <= 0L) 1f else 1f - (remainingMs.toFloat() / totalMs.toFloat()).coerceIn(0f, 1f)
-    val secondsLeft = ((remainingMs + 999) / 1000).toInt()
+    // The clock updates ten times a second. Everything that moves with it
+    // reads it while drawing; only the digits recompose, once a second.
+    val progress = { if (totalMs <= 0L) 1f else 1f - (remaining().toFloat() / totalMs.toFloat()).coerceIn(0f, 1f) }
+    val secondsLeft = remember(remaining) { derivedStateOf { ((remaining() + 999) / 1000).toInt() } }
     Row(
         Modifier
             .fillMaxWidth()
@@ -301,7 +307,7 @@ fun TimerAndBubble(
     ) {
         TimerCard(
             appIcon = appIcon,
-            remainingMs = remainingMs,
+            secondsLeft = secondsLeft,
             progress = progress,
             finished = finished,
             modifier = Modifier
@@ -325,7 +331,7 @@ fun TimerAndBubble(
                 diameter = 92.dp,
                 haptics = haptics,
                 progress = progress,
-                secondsLeft = secondsLeft,
+                secondsLeft = { secondsLeft.value },
                 finished = finished,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -389,8 +395,14 @@ fun TimerAndBubble(
 }
 
 @Composable
-private fun TimerCard(appIcon: ImageBitmap?, remainingMs: Long, progress: Float, finished: Boolean, modifier: Modifier) {
-    val total = ((remainingMs + 999) / 1000).toInt()
+private fun TimerCard(
+    appIcon: ImageBitmap?,
+    secondsLeft: State<Int>,
+    progress: () -> Float,
+    finished: Boolean,
+    modifier: Modifier
+) {
+    val total by secondsLeft
     val h = total / 3600
     val m = (total % 3600) / 60
     val s = total % 60
@@ -508,25 +520,27 @@ private fun UnitText(u: String, gradient: Boolean = false, urgent: Boolean = fal
 }
 
 @Composable
-private fun TimerBar(progress: Float) {
-    val p by animateFloatAsState(progress, tween(250, easing = LinearEasing), label = "bar")
+private fun TimerBar(progress: () -> Float) {
     val t = rememberInfiniteTransition(label = "barShimmer")
-    val sh by t.animateFloat(-0.2f, 1.2f, infiniteRepeatable(tween(1800, easing = LinearEasing)), label = "sh")
+    val sh = t.animateFloat(-0.2f, 1.2f, infiniteRepeatable(tween(1800, easing = LinearEasing)), label = "sh")
+    // Fill and shimmer are both painted from state read at draw time, so the
+    // bar moves every frame while nothing above it recomposes.
     Box(
         Modifier
             .fillMaxWidth()
             .height(10.dp)
             .clip(RoundedCornerShape(50))
             .background(Color.White.copy(alpha = 0.45f))
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth(p.coerceIn(0.02f, 1f))
-                .fillMaxHeight()
-                .clip(RoundedCornerShape(50))
-                .background(Brush.horizontalGradient(listOf(P.BarFrom, P.BarTo)))
-                .drawBehind {
-                    val x = sh * size.width
+            .drawBehind {
+                val filled = size.width * progress().coerceIn(0.02f, 1f)
+                val radius = CornerRadius(size.height / 2f)
+                drawRoundRect(
+                    Brush.horizontalGradient(listOf(P.BarFrom, P.BarTo), startX = 0f, endX = filled),
+                    size = Size(filled, size.height),
+                    cornerRadius = radius
+                )
+                clipRect(right = filled) {
+                    val x = sh.value * size.width
                     drawRect(
                         Brush.horizontalGradient(
                             listOf(Color.Transparent, Color.White.copy(alpha = 0.55f), Color.Transparent),
@@ -534,8 +548,8 @@ private fun TimerBar(progress: Float) {
                         )
                     )
                 }
-        )
-    }
+            }
+    )
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.rockAndFlowers() {
@@ -1247,12 +1261,14 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.sprout() {
 @Composable
 fun BottomActions(
     unlocked: Boolean,
-    remainingLabel: String,
+    remaining: () -> Long,
     appIcon: ImageBitmap?,
     haptics: Haptics,
     onContinue: () -> Unit,
     onWalkAway: () -> Unit
 ) {
+    // Only this label follows the clock, and only once a second.
+    val remainingLabel by remember(remaining) { derivedStateOf { clockLabel(remaining()) } }
     Column(
         Modifier
             .fillMaxWidth()
@@ -1312,14 +1328,21 @@ fun BottomActions(
     }
 }
 
-/** Keep a value in sync with real time while composed (ticks every second). */
+/**
+ * Keeps a value in sync with real time while composed.
+ *
+ * Everything that reads it ("Today", "2 days left", "3 months left") changes
+ * at most once a minute, so it ticks every 20 seconds rather than every
+ * second — the pause screen's whole content tree used to recompose 60 times
+ * a minute for labels that never changed.
+ */
 @Composable
 fun rememberNow(): Long {
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
+            delay(20_000)
             now = System.currentTimeMillis()
-            delay(1000)
         }
     }
     return now

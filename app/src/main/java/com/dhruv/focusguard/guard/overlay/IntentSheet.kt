@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -219,7 +220,9 @@ fun IntentLayer(
 @Composable
 private fun AskPage(state: PauseState, haptics: Haptics, onPick: (Reason) -> Unit, onWalkAway: () -> Unit) {
     val t = rememberInfiniteTransition(label = "intentArt")
-    val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(4200, easing = LinearEasing)), label = "phase")
+    // Held, not read: each card reads it while drawing, so the four cards
+    // animate without recomposing on every frame.
+    val phase = t.animateFloat(0f, 1f, infiniteRepeatable(tween(4200, easing = LinearEasing)), label = "phase")
 
     Column {
         Text(
@@ -272,7 +275,7 @@ private fun todayLine(counts: Map<String, Int>): String? {
 private fun IntentCard(
     reason: Reason,
     counts: Map<String, Int>,
-    phase: Float,
+    phase: State<Float>,
     haptics: Haptics,
     onPick: (Reason) -> Unit,
     modifier: Modifier
@@ -295,11 +298,12 @@ private fun IntentCard(
                 .clip(RoundedCornerShape(18.dp))
         ) {
             Canvas(Modifier.fillMaxSize()) {
+                val p = phase.value
                 when (reason) {
-                    Reason.LongDay -> musicArt(phase)
-                    Reason.Bored -> breatheArt(phase)
-                    Reason.Avoiding -> summitArt(phase)
-                    Reason.Specific -> waitArt(phase)
+                    Reason.LongDay -> musicArt(p)
+                    Reason.Bored -> breatheArt(p)
+                    Reason.Avoiding -> summitArt(p)
+                    Reason.Specific -> waitArt(p)
                 }
             }
             if (n > 0) {

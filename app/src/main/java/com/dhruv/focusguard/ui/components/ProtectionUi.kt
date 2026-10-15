@@ -35,7 +35,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.dhruv.focusguard.guard.Protection
 import com.dhruv.focusguard.ui.theme.Space
 import com.dhruv.focusguard.ui.theme.mindful
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /** Snapshot of everything that keeps the guard alive. */
 data class ProtectionState(
@@ -65,7 +67,13 @@ fun rememberResumeTick(): Int {
     return tick
 }
 
-/** Live protection status: refreshed on resume and every 1.5s while shown. */
+/**
+ * Live protection status: refreshed on resume and every 3s while shown.
+ *
+ * The read touches the accessibility manager and a secure setting, so it
+ * happens off the main thread; the state is a data class, so an unchanged
+ * reading doesn't recompose anything.
+ */
 @Composable
 fun rememberProtectionState(): ProtectionState {
     val context = LocalContext.current
@@ -73,8 +81,8 @@ fun rememberProtectionState(): ProtectionState {
     var state by remember { mutableStateOf(readProtection(context)) }
     LaunchedEffect(resume) {
         while (true) {
-            state = readProtection(context)
-            delay(1_500)
+            state = withContext(Dispatchers.IO) { readProtection(context) }
+            delay(3_000)
         }
     }
     return state

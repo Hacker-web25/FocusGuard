@@ -18,6 +18,7 @@ import com.dhruv.focusguard.data.model.Goal
 import com.dhruv.focusguard.data.model.Task
 import com.dhruv.focusguard.guard.overlay.OverlayLifecycleOwner
 import com.dhruv.focusguard.guard.overlay.PauseActions
+import com.dhruv.focusguard.guard.overlay.PauseMode
 import com.dhruv.focusguard.guard.overlay.PauseScreen
 import com.dhruv.focusguard.guard.overlay.PauseState
 
@@ -111,6 +112,40 @@ class LockOverlay(
         } catch (e: Exception) {
             Log.e(TAG, "Could not add lock overlay", e)
             lifecycleOwner.destroy()
+        }
+    }
+
+    /**
+     * Show the block screen: Instagram is not opening at all, because the
+     * daily budget is spent or a cool-down is running.
+     */
+    fun showBlocked(
+        reason: GuardEngine.BlockReason,
+        untilWall: Long,
+        usedMinutes: Int,
+        limitMinutes: Int,
+        userName: String,
+        streak: Int
+    ) {
+        val now = System.currentTimeMillis()
+        show(
+            totalSeconds = 1,
+            penaltySeconds = 0,
+            strikes = 0,
+            justPenalized = false,
+            userName = userName,
+            opensToday = 0,
+            walkAwaysToday = 0,
+            streak = streak
+        )
+        state?.apply {
+            blockReason = reason
+            blockUntilWall = untilWall
+            blockTotalMs = (untilWall - now).coerceAtLeast(1L)
+            this.usedMinutes = usedMinutes
+            this.limitMinutes = limitMinutes
+            finished = true          // nothing is counting down here
+            mode = PauseMode.Blocked
         }
     }
 

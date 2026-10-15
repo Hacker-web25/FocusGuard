@@ -41,7 +41,9 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
@@ -59,6 +61,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.dhruv.focusguard.R
 import kotlinx.coroutines.Dispatchers
@@ -194,6 +197,125 @@ class Backdrop(val image: ImageBitmap?) {
 
 val LocalBackdrop = staticCompositionLocalOf { Backdrop(null) }
 val LocalScreenSize = staticCompositionLocalOf { Size(1080f, 2400f) }
+
+// ═════════════════════════════════════════════════════════════════
+//  Backdrop raster: the sky is painted once, not every frame.
+//
+//  Drawing the sky means three ridge paths, four gradients and a
+//  handful of clouds. That used to run once for the background and
+//  again inside every frosted card, each behind its own blur pass —
+//  the single most expensive thing on the screen. Now it is drawn
+//  twice in total, into two bitmaps:
+//
+//   - [sharp]   half-resolution, for the background itself. The sky
+//               is all soft gradients, so half-res is identical to
+//               the eye and costs a quarter of the pixels.
+//   - [blurred] a tenth of the resolution, box-blurred, for the
+//               glass. Scaling it back up is the frost, so no card
+//               needs a blur pass at all.
+//
+//  Both are built off the main thread and reused for every card and
+//  every later pause of the same size.
+// ═════════════════════════════════════════════════════════════════
+
+@Stable
+class BackdropRaster(val sharp: ImageBitmap, val blurred: ImageBitmap)
+
+val LocalRaster = staticCompositionLocalOf<BackdropRaster?> { null }
+
+private object RasterCache {
+    private var key: String = ""
+    private var value: BackdropRaster? = null
+
+    @Synchronized
+    fun get(k: String): BackdropRaster? = if (k == key) value else null
+
+    @Synchronized
+    fun put(k: String, raster: BackdropRaster) {
+        key = k
+        value = raster
+    }
+}
+
+/** Builds (or reuses) the rasters for this screen size and backdrop. */
+@Composable
+fun rememberBackdropRaster(backdrop: Backdrop, screen: Size): BackdropRaster? {
+    val density = LocalDensity.current
+    val w = screen.width.toInt()
+    val h = screen.height.toInt()
+    val key = "${w}x$h:${backdrop.image?.hashCode() ?: 0}"
+    val raster by produceState<BackdropRaster?>(initialValue = RasterCache.get(key), key) {
+        if (value != null || w < 2 || h < 2) return@produceState
+        value = withContext(Dispatchers.Default) {
+            try {
+                val sharp = rasterise(w / 2, h / 2, density) { size ->
+                    backdrop.draw(this, size)
+                }
+                val small = rasterise(
+                    (w / 10).coerceAtLeast(16), (h / 10).coerceAtLeast(16), density
+                ) { size -> backdrop.draw(this, size) }
+                BackdropRaster(sharp, boxBlur(small, 2)).also { RasterCache.put(key, it) }
+            } catch (e: Throwable) {
+                null // out of memory on a small device: fall back to drawing live
+            }
+        }
+    }
+    return raster
+}
+
+/** Draw [block] into an off-screen bitmap of the given pixel size. */
+private fun rasterise(
+    width: Int,
+    height: Int,
+    density: Density,
+    block: DrawScope.(Size) -> Unit
+): ImageBitmap {
+    val bitmap = ImageBitmap(width, height)
+    val canvas = androidx.compose.ui.graphics.Canvas(bitmap)
+    val size = Size(width.toFloat(), height.toFloat())
+    CanvasDrawScope().draw(density, LayoutDirection.Ltr, canvas, size) { block(size) }
+    return bitmap
+}
+
+/** A couple of box-blur passes over a tiny bitmap: cheap, and plenty frosty. */
+private fun boxBlur(image: ImageBitmap, radius: Int): ImageBitmap {
+    val w = image.width
+    val h = image.height
+    val src = IntArray(w * h)
+    val android = image.asAndroidBitmap()
+    android.getPixels(src, 0, w, 0, 0, w, h)
+    val tmp = IntArray(w * h)
+    repeat(2) {
+        blurPass(src, tmp, w, h, radius)   // rows
+        blurPass(tmp, src, h, w, radius)   // columns (transposed back)
+    }
+    android.setPixels(src, 0, w, 0, 0, w, h)
+    return android.asImageBitmap()
+}
+
+/** One horizontal pass, writing the result transposed so the next pass is horizontal too. */
+private fun blurPass(src: IntArray, dst: IntArray, width: Int, height: Int, radius: Int) {
+    val window = radius * 2 + 1
+    for (y in 0 until height) {
+        val row = y * width
+        var a = 0; var r = 0; var g = 0; var b = 0
+        for (i in -radius..radius) {
+            val p = src[row + i.coerceIn(0, width - 1)]
+            a += (p ushr 24) and 0xFF; r += (p ushr 16) and 0xFF
+            g += (p ushr 8) and 0xFF; b += p and 0xFF
+        }
+        for (x in 0 until width) {
+            dst[x * height + y] =
+                ((a / window) shl 24) or ((r / window) shl 16) or ((g / window) shl 8) or (b / window)
+            val out = src[row + (x - radius).coerceIn(0, width - 1)]
+            val inp = src[row + (x + radius + 1).coerceIn(0, width - 1)]
+            a += ((inp ushr 24) and 0xFF) - ((out ushr 24) and 0xFF)
+            r += ((inp ushr 16) and 0xFF) - ((out ushr 16) and 0xFF)
+            g += ((inp ushr 8) and 0xFF) - ((out ushr 8) and 0xFF)
+            b += (inp and 0xFF) - (out and 0xFF)
+        }
+    }
+}
 
 /**
  * Decoded once per process (the service preloads it when it starts), so every
@@ -337,19 +459,33 @@ private fun DrawScope.drawSky(screen: Size) {
     )
 }
 
-/** Full-screen backdrop. */
+/** Full-screen backdrop: one blit of the pre-painted sky. */
 @Composable
 fun BackdropLayer() {
     val backdrop = LocalBackdrop.current
     val screen = LocalScreenSize.current
-    Canvas(Modifier.fillMaxSize()) { backdrop.draw(this, screen) }
+    val raster = LocalRaster.current
+    Canvas(Modifier.fillMaxSize()) {
+        val ready = raster?.sharp
+        if (ready != null) {
+            drawImage(
+                image = ready,
+                dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                filterQuality = FilterQuality.Low
+            )
+        } else {
+            backdrop.draw(this, screen)   // first frame, before the raster is ready
+        }
+    }
 }
 
 /** A few pink petals drifting down, like the mockup. Purely decorative. */
 @Composable
 fun FallingPetals() {
     val t = rememberInfiniteTransition(label = "petals")
-    val time by t.animateFloat(
+    // Read inside the draw lambda below, so the petals fall without the
+    // screen recomposing 60 times a second.
+    val time = t.animateFloat(
         initialValue = 0f, targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(22_000, easing = LinearEasing), RepeatMode.Restart),
         label = "petalTime"
@@ -365,17 +501,20 @@ fun FallingPetals() {
             )
         }
     }
+    val petal = remember { Path() }
     Canvas(Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
         val unit = 9.dp.toPx()
+        val now = time.value
         for (s in seeds) {
-            val p = (time + s[1]) % 1f
+            val p = (now + s[1]) % 1f
             val y = -0.05f * h + p * h * 1.1f
             val x = (s[0] * w + p * w * 0.25f + sin(p * 6.28f * s[3]) * w * 0.04f) % w
             val r = unit * s[2]
             rotate(s[4] + p * 540f, pivot = Offset(x, y)) {
-                val petal = Path().apply {
+                petal.rewind()
+                petal.apply {
                     moveTo(x, y - r)
                     quadraticBezierTo(x + r * 0.9f, y - r * 0.2f, x, y + r)
                     quadraticBezierTo(x - r * 0.9f, y - r * 0.2f, x, y - r)
@@ -412,7 +551,22 @@ fun Glass(
             .clip(shape)
             .onGloballyPositioned { origin = it.positionInRoot() }
     ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val raster = LocalRaster.current
+        val frosted = raster?.blurred
+        if (frosted != null) {
+            // The blur is already baked into the small bitmap; scaling it back
+            // up is what makes the frost, so there is no blur pass per card.
+            Canvas(Modifier.matchParentSize()) {
+                translate(-origin.x, -origin.y) {
+                    drawImage(
+                        image = frosted,
+                        dstSize = IntSize(screen.width.toInt(), screen.height.toInt()),
+                        filterQuality = FilterQuality.Medium
+                    )
+                }
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Only until the raster is ready (a frame or two).
             Canvas(
                 Modifier
                     .matchParentSize()

@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -73,10 +74,10 @@ fun GlowBubble(
     diameter: Dp,
     haptics: Haptics,
     modifier: Modifier = Modifier,
-    progress: Float = 0f,
-    secondsLeft: Int = Int.MAX_VALUE,
+    progress: () -> Float = { 0f },
+    secondsLeft: () -> Int = { Int.MAX_VALUE },
     finished: Boolean = false,
-    breath: Float = 1f,
+    breath: () -> Float = { 1f },
     lookAtTimer: Boolean = true,
     onRubbedFull: (() -> Unit)? = null
 ) {
@@ -91,20 +92,22 @@ fun GlowBubble(
     var touching by remember { mutableStateOf(false) }
     var finger by remember { mutableStateOf(Offset.Zero) }
     val sparks = remember { mutableStateListOf<Spark>() }
-    var now by remember { mutableLongStateOf(0L) }
+    // Written every frame, read only inside the Canvas below: the bubble
+    // repaints without the composable recomposing.
+    val frame = remember { mutableLongStateOf(0L) }
     var rubbedFull by remember { mutableStateOf(false) }
 
     // Idle life: bob, wing flap, iridescent spin
     val t = rememberInfiniteTransition(label = "bubble")
-    val bob by t.animateFloat(0f, 1f, infiniteRepeatable(tween(2600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "bob")
-    val flap by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "flap")
-    val spin by t.animateFloat(0f, 360f, infiniteRepeatable(tween(9000, easing = LinearEasing)), label = "spin")
+    val bobS = t.animateFloat(0f, 1f, infiniteRepeatable(tween(2600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "bob")
+    val flapS = t.animateFloat(0f, 1f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "flap")
+    val spinS = t.animateFloat(0f, 360f, infiniteRepeatable(tween(9000, easing = LinearEasing)), label = "spin")
 
     // Frame clock for sparks + glow decay
     LaunchedEffect(Unit) {
         while (true) {
             withFrameMillis { ms ->
-                now = ms
+                frame.longValue = ms
                 sparks.removeAll { ms - it.born > 1100 }
             }
             if (!touching && glow.value > 0f) glow.snapTo((glow.value - 0.004f).coerceAtLeast(0f))
@@ -120,9 +123,11 @@ fun GlowBubble(
         }
     }
 
-    // Bounce on each of the last five seconds
-    LaunchedEffect(secondsLeft) {
-        if (secondsLeft in 1..5 && !finished) {
+    // Bounce on each of the last five seconds. Derived, so this composable
+    // wakes once a second rather than on every countdown update.
+    val seconds by remember(secondsLeft) { derivedStateOf { secondsLeft() } }
+    LaunchedEffect(seconds) {
+        if (seconds in 1..5 && !finished) {
             launch { sy.animateTo(0.86f, tween(90)); sy.animateTo(1f, spring(0.3f, 420f)) }
             launch { sx.animateTo(1.12f, tween(90)); sx.animateTo(1f, spring(0.3f, 420f)) }
             jump.animateTo(-0.10f, tween(140, easing = FastOutSlowInEasing))
@@ -134,7 +139,7 @@ fun GlowBubble(
     LaunchedEffect(finished) {
         if (finished) {
             happy = true
-            burst(sparks, 14, now, heart = true)
+            burst(sparks, 14, frame.longValue, heart = true)
             jump.animateTo(-0.35f, tween(260, easing = FastOutSlowInEasing))
             jump.animateTo(0f, spring(0.35f, 300f))
         }
@@ -143,7 +148,7 @@ fun GlowBubble(
     fun tapReaction() {
         haptics.click()
         happy = true
-        burst(sparks, 6, now, heart = true)
+        burst(sparks, 6, frame.longValue, heart = true)
         scope.launch { sy.animateTo(0.80f, tween(80)); sy.animateTo(1f, spring(0.25f, 380f)) }
         scope.launch { sx.animateTo(1.16f, tween(80)); sx.animateTo(1f, spring(0.25f, 380f)) }
         scope.launch {
@@ -190,7 +195,7 @@ fun GlowBubble(
                                 Spark(
                                     ch.position.x - c.x, ch.position.y - c.y,
                                     Random.nextFloat() * 2f - 1f, -Random.nextFloat() * 1.5f - 0.5f,
-                                    now, heart = false, hue = if (Random.nextBoolean()) Color.White else P.TimerPink
+                                    frame.longValue, heart = false, hue = if (Random.nextBoolean()) Color.White else P.TimerPink
                                 )
                             )
                             scope.launch {
@@ -199,7 +204,7 @@ fun GlowBubble(
                                     rubbedFull = true
                                     happy = true
                                     haptics.success()
-                                    burst(sparks, 12, now, heart = true)
+                                    burst(sparks, 12, frame.longValue, heart = true)
                                     onRubbedFull?.invoke()
                                 }
                             }
@@ -215,9 +220,10 @@ fun GlowBubble(
             }
     ) {
         val c = Offset(size.width / 2f, size.height / 2f)
-        val r = size.minDimension / 1.7f / 2f * breath
-        val bobY = (bob - 0.5f) * r * 0.08f + jump.value * r
-        val warm = progress.coerceIn(0f, 1f)
+        val r = size.minDimension / 1.7f / 2f * breath()
+        val now = frame.longValue
+        val bobY = (bobS.value - 0.5f) * r * 0.08f + jump.value * r
+        val warm = progress().coerceIn(0f, 1f)
         val col1 = lerp(P.BubbleCool1, P.BubbleWarm1, warm)
         val col2 = lerp(P.BubbleCool2, P.BubbleWarm2, warm)
         val glowA = 0.30f + 0.55f * glow.value + if (finished) 0.2f else 0f
@@ -233,7 +239,7 @@ fun GlowBubble(
 
         translate(lean.value.x * 0.35f, bobY + lean.value.y * 0.35f) {
             // Wings / petals behind the body
-            val flapDeg = (flap - 0.5f) * 14f + if (touching) 8f else 0f
+            val flapDeg = (flapS.value - 0.5f) * 14f + if (touching) 8f else 0f
             wing(c, r, left = true, deg = -flapDeg, tint = col2)
             wing(c, r, left = false, deg = flapDeg, tint = col2)
 
@@ -254,7 +260,7 @@ fun GlowBubble(
                     radius = r, center = c
                 )
                 // Iridescent film
-                rotate(spin, pivot = c) {
+                rotate(spinS.value, pivot = c) {
                     drawCircle(
                         Brush.sweepGradient(
                             listOf(
@@ -300,7 +306,7 @@ fun GlowBubble(
                     look = look,
                     eyeOpen = eyeOpen.value,
                     happy = happy || finished,
-                    excited = (secondsLeft in 1..5 && !finished) || glow.value > 0.6f
+                    excited = (seconds in 1..5 && !finished) || glow.value > 0.6f
                 )
             }
         }
