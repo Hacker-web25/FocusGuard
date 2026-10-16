@@ -353,8 +353,8 @@ private fun BackButton(onClick: () -> Unit, modifier: Modifier) {
     Glass(
         modifier = modifier.size(72.mp).clickable(role = Role.Button, onClickLabel = "Back", onClick = onClick),
         shape = CircleShape,
-        tint = Color.White.copy(alpha = 0.32f),
-        rim = Color.White.copy(alpha = 0.75f),
+        tint = Color.White.copy(alpha = 0.40f),
+        rim = Color.White.copy(alpha = 0.85f),
         elevation = 2.dp
     ) {
         Icon(
@@ -408,11 +408,11 @@ private fun TaskBanner(task: Task?, mode: FocusMode, onClick: () -> Unit, modifi
             val sub = task?.let { subtitleOf(it) } ?: "Tap to pick a task"
             Text(
                 title, style = gs(26.1f, FontWeight.Medium, Color(0xFF071859)), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.width((if (task?.isHighPriority == true) 500 else 650).mp).baselineAt(204 - 52, 240.3f - 182)
+                modifier = Modifier.baselineAt(204 - 52, 240.3f - 182).width((if (task?.isHighPriority == true) 500 else 650).mp)
             )
             Text(
                 sub, style = gs(21.6f, color = Color(0xFF6B70A8)), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.width(650.mp).baselineAt(204 - 52, 276.3f - 182)
+                modifier = Modifier.baselineAt(204 - 52, 276.3f - 182).width(650.mp)
             )
             if (task?.isHighPriority == true) {
                 PriorityChip(Modifier.at(715 - 52, 215 - 182))
@@ -432,11 +432,7 @@ fun PriorityChip(modifier: Modifier = Modifier, height: Number = 40, textSize: F
             .padding(start = 14.mp, end = 18.mp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            Icons.Rounded.LocalFireDepartment, null,
-            modifier = Modifier.size(24.mp).gradientTint(Brush.verticalGradient(listOf(Color(0xFFFFB347), Color(0xFFF25A4E), Color(0xFFE8403F)))),
-            tint = Color.White
-        )
+        com.dhruv.focusguard.ui.sky.Flame(Modifier.size(20.mp, 25.mp))
         Spacer(Modifier.width(10.mp))
         Text("High priority", style = gs(textSize, FontWeight.Medium, Sky.Red))
     }
@@ -680,12 +676,16 @@ private fun PrimaryPill(phase: FocusPhase, hasTask: Boolean, onClick: () -> Unit
             .size(298.mp, 76.mp)
             .scale(s)
             .drawBehind {
-                // purple glow under the button
-                drawRoundRect(
-                    Brush.verticalGradient(listOf(Color.Transparent, Color(0xFF9B7CF6).copy(alpha = 0.30f)), startY = size.height * 0.4f, endY = size.height * 1.25f),
-                    topLeft = Offset(size.width * 0.06f, size.height * 0.25f), size = Size(size.width * 0.88f, size.height),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2)
-                )
+                // a soft purple glow under the button
+                for (i in 1..6) {
+                    val g = i * 2.5f.mp.toPx()
+                    drawRoundRect(
+                        Color(0xFF9B7CF6).copy(alpha = 0.035f),
+                        topLeft = Offset(-g * 0.6f, 4.mp.toPx() - g * 0.3f + g * 0.4f),
+                        size = Size(size.width + g * 1.2f, size.height + g * 0.6f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2 + g)
+                    )
+                }
             }
             .clip(RoundedCornerShape(50))
             .background(Brush.horizontalGradient(*Sky.PauseStops))

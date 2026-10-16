@@ -1,11 +1,8 @@
 package com.dhruv.focusguard.ui.sky
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FitnessCenter
-import androidx.compose.material.icons.outlined.MenuBook
-import androidx.compose.material.icons.outlined.MonitorHeart
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material.icons.outlined.WorkOutline
@@ -22,12 +19,11 @@ import java.util.Locale
  * colour of its row, and a gentle line under the title when it has no notes.
  */
 enum class TaskKind(val icon: ImageVector, val tone: Tone, val motto: String) {
-    @Suppress("DEPRECATION")
-    Study(Icons.Outlined.MenuBook, Tones.Red, "Consistency builds skills."),
-    Health(Icons.Outlined.MonitorHeart, Tones.Teal, "Better mornings = better days."),
+    Study(SkyIcons.BookLines, Tones.Red, "Consistency builds skills."),
+    Health(SkyIcons.HeartPulse, Tones.Teal, "Better mornings = better days."),
     Notes(Icons.Outlined.Description, Tones.Violet, "Quick revision, big impact."),
     Water(Icons.Outlined.WaterDrop, Tones.Blue, "Hydrate for a sharper you."),
-    Reading(Icons.Outlined.AutoStories, Tones.Amber, "Small habits, big changes."),
+    Reading(SkyIcons.OpenBook, Tones.Amber, "Small habits, big changes."),
     Fitness(Icons.Outlined.FitnessCenter, Tones.Teal, "Move a little, feel a lot."),
     Work(Icons.Outlined.WorkOutline, Tones.Blue, "Deep work wins the day."),
     General(Icons.Outlined.TaskAlt, Tones.Violet, "One step at a time.")

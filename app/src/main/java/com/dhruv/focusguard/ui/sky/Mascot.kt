@@ -159,7 +159,7 @@ fun Mascot(
         drawJelly(
             c = p(cx, cy), rx = mpx(rx), ry = mpx(ry),
             face = face, pose = pose,
-            layout = FaceLayout(eyeDx = 0.43f, eyeDy = -0.12f, eyeSize = 0.85f, mouthDy = 0.13f, mouthSize = 1.45f, blushDx = 0.58f, blushDy = 0.19f),
+            layout = FaceLayout(eyeDx = 0.31f, eyeDy = -0.07f, eyeSize = 1.08f, mouthDy = 0.16f, mouthSize = 1.32f, blushDx = 0.50f, blushDy = 0.16f),
             sprouts = Sprouts.Stems,
             warmth = 0f,
             time = time,
@@ -182,37 +182,54 @@ fun Mascot(
 
 /** The mossy rock the mascot sits on. */
 private fun DrawScope.drawRock(ox: Int, oy: Int) {
-    fun x(v: Float) = mpx(v - ox)
-    fun y(v: Float) = mpx(v - oy)
+    fun pt(x: Float, y: Float) = Offset(mpx(x - ox), mpx(y - oy))
+    val outline = listOf(
+        585f to 396f, 589f to 380f, 598f to 369f, 616f to 362f, 648f to 360f, 700f to 361f,
+        760f to 359f, 820f to 360f, 858f to 358f, 887f to 362f, 901f to 370f, 908f to 382f, 911f to 396f
+    )
     val body = Path().apply {
-        moveTo(x(588f), y(392f))
-        lineTo(x(596f), y(372f))
-        quadraticBezierTo(x(610f), y(361f), x(650f), y(359f))
-        lineTo(x(860f), y(358f))
-        quadraticBezierTo(x(896f), y(360f), x(904f), y(372f))
-        lineTo(x(910f), y(392f))
+        val (x0, y0) = outline.first(); moveTo(pt(x0, y0).x, pt(x0, y0).y)
+        for (i in 1 until outline.size) {
+            val (px, py) = outline[i - 1]; val (x, y) = outline[i]
+            val mid = pt((px + x) / 2f, (py + y) / 2f)
+            quadraticBezierTo(pt(px, py).x, pt(px, py).y, mid.x, mid.y)
+        }
+        val (xl, yl) = outline.last(); lineTo(pt(xl, yl).x, pt(xl, yl).y)
         close()
     }
-    drawPath(body, Brush.verticalGradient(listOf(Color(0xFFA996C9), Color(0xFF7D7AA6), Color(0xFF6C6B95)), startY = y(358f), endY = y(392f)))
-    // Lit top edge
-    val top = Path().apply {
-        moveTo(x(600f), y(368f))
-        quadraticBezierTo(x(612f), y(361f), x(650f), y(360f))
-        lineTo(x(860f), y(359f))
-        quadraticBezierTo(x(890f), y(361f), x(900f), y(369f))
+    drawPath(body, Brush.verticalGradient(listOf(Color(0xFFB9A6D8), Color(0xFF8E85B2), Color(0xFF6E6A96)), startY = pt(0f, 358f).y, endY = pt(0f, 396f).y))
+    // Warm light on the top surface
+    drawPath(
+        Path().apply {
+            moveTo(pt(600f, 368f).x, pt(600f, 368f).y)
+            quadraticBezierTo(pt(616f, 361f).x, pt(616f, 361f).y, pt(650f, 361f).x, pt(650f, 361f).y)
+            lineTo(pt(858f, 359f).x, pt(858f, 359f).y)
+            quadraticBezierTo(pt(888f, 362f).x, pt(888f, 362f).y, pt(899f, 370f).x, pt(899f, 370f).y)
+        },
+        Color(0xFFF1D9E6).copy(alpha = 0.9f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = mpx(4f), cap = StrokeCap.Round)
+    )
+    // Cracks and texture
+    val crack = Color(0xFF5E5A86).copy(alpha = 0.55f)
+    for ((a, b) in listOf((628f to 372f) to (646f to 384f), (700f to 370f) to (716f to 378f), (812f to 371f) to (838f to 382f), (870f to 375f) to (884f to 389f))) {
+        drawLine(crack, pt(a.first, a.second), pt(b.first, b.second), strokeWidth = mpx(2f), cap = StrokeCap.Round)
     }
-    drawPath(top, Color(0xFFE9D2EC).copy(alpha = 0.85f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = mpx(5f), cap = StrokeCap.Round))
-    // Cracks
-    val crack = Color(0xFF5E5C86).copy(alpha = 0.6f)
-    drawLine(crack, Offset(x(640f), y(374f)), Offset(x(662f), y(385f)), strokeWidth = mpx(2f))
-    drawLine(crack, Offset(x(820f), y(372f)), Offset(x(845f), y(381f)), strokeWidth = mpx(2f))
-    // Moss and grass tufts at either end
-    val grass = listOf(Color(0xFF6FA08E), Color(0xFF86B79D), Color(0xFF5E8E80))
-    for ((i, gx) in listOf(612f, 622f, 632f, 645f, 842f, 855f, 868f, 880f, 892f).withIndex()) {
-        val h = 10f + (i % 3) * 5f
-        val lean = if (i % 2 == 0) -4f else 4f
-        drawLine(grass[i % 3], Offset(x(gx), y(362f)), Offset(x(gx + lean), y(362f - h)), strokeWidth = mpx(3f), cap = StrokeCap.Round)
+    // Moss cushions with a few blades of grass
+    for ((cx, w) in listOf(624f to 56f, 868f to 64f)) {
+        drawOval(
+            Brush.verticalGradient(listOf(Color(0xFF9BCBA9), Color(0xFF5F927F)), startY = pt(0f, 352f).y, endY = pt(0f, 366f).y),
+            topLeft = pt(cx - w / 2, 353f), size = Size(mpx(w), mpx(13f))
+        )
+        for (k in 0 until 5) {
+            val bx = cx - w * 0.35f + k * w * 0.17f
+            val h = 9f + (k % 3) * 5f
+            val lean = if (k % 2 == 0) -3f else 3f
+            val blade = Path().apply {
+                moveTo(pt(bx - 2f, 357f).x, pt(bx - 2f, 357f).y)
+                quadraticBezierTo(pt(bx + lean * 0.3f, 357f - h * 0.6f).x, pt(bx + lean * 0.3f, 357f - h * 0.6f).y, pt(bx + lean, 357f - h).x, pt(bx + lean, 357f - h).y)
+                quadraticBezierTo(pt(bx + lean * 0.3f + 1f, 357f - h * 0.5f).x, pt(bx + lean * 0.3f + 1f, 357f - h * 0.5f).y, pt(bx + 2f, 357f).x, pt(bx + 2f, 357f).y)
+                close()
+            }
+            drawPath(blade, Color(0xFF6FA08E))
+        }
     }
-    drawOval(Color(0xFF7FAE95).copy(alpha = 0.8f), topLeft = Offset(x(604f), y(358f)), size = Size(mpx(48f), mpx(9f)))
-    drawOval(Color(0xFF7FAE95).copy(alpha = 0.8f), topLeft = Offset(x(838f), y(357f)), size = Size(mpx(58f), mpx(9f)))
 }

@@ -368,8 +368,8 @@ fun AudienceStage(
                     time < m.reactUntil -> Face(Eyes.Happy, Mouth.Laugh)
                     else -> faceFor(m, index, phase, cheer.coerceIn(0, 5))
                 }
-                val layout = if (m.main) FaceLayout(eyeDx = 0.27f, eyeDy = -0.25f, eyeSize = 1.05f, mouthDy = 0.06f, blushDx = 0.48f, blushDy = 0.07f)
-                else FaceLayout(eyeDx = 0.36f, eyeDy = -0.20f, eyeSize = 1.05f, mouthDy = 0.0f, blushDx = 0.46f, blushDy = 0.0f)
+                val layout = if (m.main) FaceLayout(eyeDx = 0.27f, eyeDy = -0.25f, eyeSize = 1.0f, mouthDy = 0.04f, mouthSize = 1.1f, blushDx = 0.48f, blushDy = 0.07f)
+                else FaceLayout(eyeDx = 0.36f, eyeDy = -0.20f, eyeSize = 0.92f, mouthDy = 0.0f, blushDx = 0.46f, blushDy = 0.0f)
                 drawJelly(
                     c = p(m.cx, m.cy),
                     rx = mpx(m.rx), ry = mpx(m.ry),
@@ -429,24 +429,19 @@ private fun faceFor(m: Member, index: Int, phase: StagePhase, cheer: Int): Face 
     }
 }
 
-/** The misty ledge the crowd stands on. */
+/** The misty ledge the crowd stands on: soft light, a few pale stones. */
 private fun DrawScope.drawGround(oy: Int) {
-    val c = Offset(mpx(500), mpx(1338 - oy))
+    val c = Offset(mpx(500), mpx(1342 - oy))
     drawOval(
         androidx.compose.ui.graphics.Brush.radialGradient(
-            listOf(Color(0xFFF3E6F7), Color(0xFFE7D6F1).copy(alpha = 0.7f), Color.Transparent),
-            center = c, radius = mpx(430)
+            listOf(Color.White.copy(alpha = 0.85f), Color(0xFFF3E4F6).copy(alpha = 0.6f), Color.Transparent),
+            center = c, radius = mpx(440)
         ),
-        topLeft = Offset(c.x - mpx(430), c.y - mpx(26)), size = Size(mpx(860), mpx(52))
+        topLeft = Offset(c.x - mpx(440), c.y - mpx(30)), size = Size(mpx(880), mpx(60))
     )
-    // A few stones and grass tufts at the edges, as in the painting
-    val stone = Color(0xFF8E8AAE)
-    for ((x, w) in listOf(150f to 70f, 690f to 90f, 790f to 60f)) {
-        drawOval(stone.copy(alpha = 0.55f), topLeft = Offset(mpx(x), mpx(1338 - oy)), size = Size(mpx(w), mpx(14)))
-    }
-    val grass = Color(0xFF7FA39A)
-    for (x in listOf(338f, 352f, 668f, 683f, 740f)) {
-        drawLine(grass.copy(alpha = 0.7f), Offset(mpx(x), mpx(1342 - oy)), Offset(mpx(x - 4), mpx(1328 - oy)), strokeWidth = mpx(2.5f), cap = StrokeCap.Round)
-        drawLine(grass.copy(alpha = 0.7f), Offset(mpx(x + 4), mpx(1342 - oy)), Offset(mpx(x + 9), mpx(1330 - oy)), strokeWidth = mpx(2.5f), cap = StrokeCap.Round)
+    for ((x, w, a) in listOf(Triple(205f, 70f, 0.45f), Triple(330f, 110f, 0.55f), Triple(560f, 60f, 0.4f), Triple(690f, 95f, 0.5f))) {
+        val top = Offset(mpx(x), mpx(1336 - oy))
+        drawOval(Color(0xFF9C93BE).copy(alpha = a), topLeft = top, size = Size(mpx(w), mpx(13)))
+        drawOval(Color.White.copy(alpha = a), topLeft = Offset(top.x + mpx(w * 0.15f), top.y), size = Size(mpx(w * 0.6f), mpx(5)))
     }
 }

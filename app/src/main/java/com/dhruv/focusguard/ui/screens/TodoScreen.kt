@@ -213,7 +213,7 @@ fun TodoContent(
             Text(greeting(now), style = gs(30.1f, color = Color.White), modifier = Modifier.baselineAt(114, 155.1f))
             Text(
                 name.ifBlank { "there" }, style = gs(60.4f, FontWeight.Bold, Color.White), maxLines = 1,
-                overflow = TextOverflow.Ellipsis, modifier = Modifier.width(430.mp).baselineAt(110, 217.7f)
+                overflow = TextOverflow.Ellipsis, modifier = Modifier.baselineAt(110, 217.7f).width(430.mp)
             )
             Text("Small steps today,", style = gs(24.5f, color = Color.White.copy(alpha = 0.95f)), modifier = Modifier.baselineAt(114, 274.5f))
             Text("big dreams tomorrow.", style = gs(24.5f, color = Color.White.copy(alpha = 0.95f)), modifier = Modifier.baselineAt(115, 306.6f))
@@ -399,10 +399,7 @@ private fun ModeButton(icon: ImageVector, label: String, onClick: () -> Unit) {
             .padding(start = 16.mp, end = 20.mp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            icon, null, tint = Color.White,
-            modifier = Modifier.size(28.mp).gradientTint(Brush.linearGradient(listOf(Color(0xFF8E7BFF), Color(0xFFC07BEF))))
-        )
+        Icon(icon, null, tint = Color(0xFF7D6CF2), modifier = Modifier.size(28.mp))
         Spacer(Modifier.width(9.mp))
         Text(label, style = gs(21, FontWeight.Medium, Sky.ChipLavInk))
     }
@@ -487,11 +484,11 @@ private fun TaskRow(task: Task, now: Long, haptics: Haptics?, onToggle: () -> Un
             style = gs(26, FontWeight.Medium, if (task.isCompleted) Color(0xFF8A8EB8) else Color(0xFF060F4C))
                 .copy(textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null),
             maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(455.mp).baselineAt(247 - 56, 51.2f)
+            modifier = Modifier.baselineAt(247 - 56, 51.2f).width(455.mp)
         )
         Text(
             subtitleOf(task), style = gs(21, color = Color(0xFF7479AD)), maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(455.mp).baselineAt(247 - 56, 85.4f)
+            modifier = Modifier.baselineAt(247 - 56, 85.4f).width(455.mp)
         )
         if (chip) PriorityChip(Modifier.at(246 - 56, 640 - 536), height = 36, textSize = 18f)
 

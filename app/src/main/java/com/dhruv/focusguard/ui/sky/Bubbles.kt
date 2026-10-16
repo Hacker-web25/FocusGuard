@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.lerp
 import kotlin.math.PI
 import kotlin.math.cos
@@ -87,42 +88,25 @@ fun DrawScope.drawJelly(
     // Squash keeps the feet on the ground: grow/shrink from the bottom.
     val body = Offset(center.x, center.y + (ry - by))
 
-    // Soft glow around the whole character
-    val glowA = 0.42f + 0.35f * pose.glow + 0.25f * brightness
-    drawOval(
-        Brush.radialGradient(
-            0f to Color.White.copy(alpha = glowA),
-            0.55f to Color(0xFFF6E6FF).copy(alpha = glowA * 0.45f),
-            1f to Color.Transparent,
-            center = body, radius = bx * 1.45f
-        ),
-        topLeft = Offset(body.x - bx * 1.45f, body.y - by * 1.45f),
-        size = Size(bx * 2.9f, by * 2.9f)
-    )
+    // Soft white haze around the whole character (the sun is behind them)
+    val glowA = 0.50f + 0.30f * pose.glow + 0.25f * brightness
+    scale(1f, by / bx, pivot = body) {
+        drawCircle(
+            Brush.radialGradient(
+                0f to Color.White.copy(alpha = glowA),
+                0.62f to Color.White.copy(alpha = glowA * 0.85f),
+                0.74f to Color(0xFFF8EEFF).copy(alpha = glowA * 0.45f),
+                1f to Color.Transparent,
+                center = body, radius = bx * 1.38f
+            ),
+            radius = bx * 1.38f, center = body
+        )
+    }
 
     rotate(pose.tilt, pivot = Offset(body.x, body.y + by)) {
         if (sprouts != Sprouts.None) drawSprouts(body, bx, by, sprouts, pose.leafSway, time)
 
-        if (feet) {
-            for (side in listOf(-1f, 1f)) {
-                val fc = Offset(body.x + side * bx * 0.42f, c.y + ry * 0.90f)
-                val fw = rx * 0.40f
-                val fh = ry * 0.24f
-                drawOval(
-                    Brush.verticalGradient(
-                        listOf(Color(0xFFF4F0FF), Color(0xFFD3C5FC)),
-                        startY = fc.y - fh / 2, endY = fc.y + fh / 2
-                    ),
-                    topLeft = Offset(fc.x - fw / 2, fc.y - fh / 2), size = Size(fw, fh), alpha = 0.92f
-                )
-                drawOval(
-                    Color.White.copy(alpha = 0.7f),
-                    topLeft = Offset(fc.x - fw * 0.30f, fc.y - fh * 0.38f), size = Size(fw * 0.32f, fh * 0.28f)
-                )
-            }
-        }
-
-        // Body
+        // Body: translucent, periwinkle up top melting into pink below
         val oval = Rect(body.x - bx, body.y - by, body.x + bx, body.y + by)
         val warm = warmth.coerceIn(0f, 1f)
         drawOval(
@@ -130,30 +114,38 @@ fun DrawScope.drawJelly(
                 *BodyStops.map { (p, col) -> p to lerp(col, Color(0xFFF7C9EE), warm * (0.35f + 0.4f * p)) }.toTypedArray(),
                 startY = oval.top, endY = oval.bottom
             ),
-            topLeft = oval.topLeft, size = oval.size
+            topLeft = oval.topLeft, size = oval.size, alpha = 0.90f
         )
         val shape = Path().apply { addOval(oval) }
         clipPath(shape) {
-            // Lavender on the left, peach-pink on the right, like light through glass
+            // Blue core behind the face
             drawOval(
                 Brush.radialGradient(
-                    listOf(Color(0xFFC6B6FC).copy(alpha = 0.75f), Color.Transparent),
-                    center = Offset(oval.left + bx * 0.15f, body.y + by * 0.1f), radius = bx * 0.9f
+                    listOf(Color(0xFF94B4FC).copy(alpha = 0.55f), Color.Transparent),
+                    center = Offset(body.x - bx * 0.05f, body.y - by * 0.12f), radius = bx * 0.72f
+                ),
+                topLeft = oval.topLeft, size = oval.size
+            )
+            // Pink pooling low on both sides
+            drawOval(
+                Brush.radialGradient(
+                    listOf(Color(0xFFF6C3EC).copy(alpha = 0.80f), Color.Transparent),
+                    center = Offset(body.x - bx * 0.45f, body.y + by * 0.62f), radius = bx * 0.70f
                 ),
                 topLeft = oval.topLeft, size = oval.size
             )
             drawOval(
                 Brush.radialGradient(
-                    listOf(Color(0xFFFCDDF4).copy(alpha = 0.85f), Color.Transparent),
-                    center = Offset(oval.right - bx * 0.1f, body.y + by * 0.15f), radius = bx * 0.85f
+                    listOf(Color(0xFFFAD3F0).copy(alpha = 0.75f), Color.Transparent),
+                    center = Offset(body.x + bx * 0.55f, body.y + by * 0.35f), radius = bx * 0.65f
                 ),
                 topLeft = oval.topLeft, size = oval.size
             )
-            // Inner light, brighter as the character gets happier
+            // Light from inside, brighter as the character gets happier
             drawOval(
                 Brush.radialGradient(
-                    listOf(Color.White.copy(alpha = 0.30f + 0.35f * brightness + 0.3f * pose.glow), Color.Transparent),
-                    center = Offset(body.x, body.y + by * 0.45f), radius = bx * 0.9f
+                    listOf(Color.White.copy(alpha = 0.30f + 0.30f * brightness + 0.3f * pose.glow), Color.Transparent),
+                    center = Offset(body.x, body.y + by * 0.50f), radius = bx * 0.80f
                 ),
                 topLeft = oval.topLeft, size = oval.size
             )
@@ -162,56 +154,76 @@ fun DrawScope.drawJelly(
                 drawOval(
                     Brush.sweepGradient(
                         listOf(
-                            Color(0x33FFB8E6), Color(0x229FC1FE), Color(0x22B6F0E0),
-                            Color(0x22CBB8FF), Color(0x33FFB8E6)
+                            Color(0x30FFB8E6), Color(0x229FC1FE), Color(0x22B6F0E0),
+                            Color(0x22CBB8FF), Color(0x30FFB8E6)
                         ),
                         center = body
                     ),
                     topLeft = oval.topLeft, size = oval.size
                 )
             }
-            // Soft white crescent along the upper-left inside the rim
+            // Fresnel: glass glows brightest at its edge
+            scale(1f, by / bx, pivot = body) {
+                drawCircle(
+                    Brush.radialGradient(
+                        0f to Color.Transparent,
+                        0.70f to Color.Transparent,
+                        0.88f to Color(0xFFFFF4FD).copy(alpha = 0.55f),
+                        1f to Color.White.copy(alpha = 0.95f),
+                        center = body, radius = bx
+                    ),
+                    radius = bx, center = body
+                )
+            }
+            // Soft white sheen across the upper left
             drawArc(
-                Color.White.copy(alpha = 0.55f),
-                startAngle = 150f, sweepAngle = 110f, useCenter = false,
-                topLeft = Offset(oval.left + bx * 0.10f, oval.top + by * 0.10f),
-                size = Size(bx * 1.8f, by * 1.8f),
-                style = Stroke(width = bx * 0.07f, cap = StrokeCap.Round)
+                Color.White.copy(alpha = 0.45f),
+                startAngle = 165f, sweepAngle = 95f, useCenter = false,
+                topLeft = Offset(oval.left + bx * 0.16f, oval.top + by * 0.16f),
+                size = Size(bx * 1.68f, by * 1.68f),
+                style = Stroke(width = bx * 0.10f, cap = StrokeCap.Round)
             )
             // Twinkles
-            for (i in 0 until 9) {
+            for (i in 0 until 10) {
                 val a = i * 2.39996f
                 val rr = 0.25f + 0.6f * ((i * 0.37f) % 1f)
                 val p = Offset(body.x + cos(a) * bx * rr, body.y + sin(a) * by * rr * 0.9f)
                 val tw = 0.5f + 0.5f * sin(time * 2.2f + i * 1.7f)
-                drawCircle(Color.White.copy(alpha = 0.25f + 0.55f * tw), radius = bx * (0.012f + 0.01f * (i % 3)), center = p)
+                drawCircle(Color.White.copy(alpha = 0.35f + 0.55f * tw), radius = bx * (0.010f + 0.008f * (i % 3)), center = p)
             }
         }
-        // Rim: bright, thick at the bottom-right where the light pools
-        drawOval(
-            Brush.sweepGradient(
-                listOf(
-                    Color.White.copy(alpha = 0.95f), Color.White.copy(alpha = 0.75f),
-                    Color.White.copy(alpha = 0.95f), Color.White.copy(alpha = 0.8f), Color.White.copy(alpha = 0.95f)
-                ),
-                center = body
-            ),
-            topLeft = oval.topLeft, size = oval.size, style = Stroke(width = bx * 0.045f)
-        )
-        drawOval(
-            Color.White.copy(alpha = 0.22f),
-            topLeft = Offset(oval.left - bx * 0.04f, oval.top - by * 0.04f),
-            size = Size(bx * 2.08f, by * 2.08f), style = Stroke(width = bx * 0.08f)
-        )
+        // Crisp rim
+        drawOval(Color.White.copy(alpha = 0.85f), topLeft = oval.topLeft, size = oval.size, style = Stroke(width = bx * 0.022f))
         // Specular highlights
         rotate(-35f, pivot = Offset(body.x - bx * 0.48f, body.y - by * 0.55f)) {
             drawOval(
-                Color.White.copy(alpha = 0.8f),
-                topLeft = Offset(body.x - bx * 0.66f, body.y - by * 0.64f),
-                size = Size(bx * 0.36f, by * 0.16f)
+                Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.85f), Color.White.copy(alpha = 0.25f)), startY = body.y - by * 0.64f, endY = body.y - by * 0.46f),
+                topLeft = Offset(body.x - bx * 0.68f, body.y - by * 0.64f),
+                size = Size(bx * 0.40f, by * 0.17f)
             )
         }
-        drawCircle(Color.White.copy(alpha = 0.95f), radius = bx * 0.035f, center = Offset(body.x + bx * 0.50f, body.y - by * 0.55f))
+        drawCircle(Color.White.copy(alpha = 0.95f), radius = bx * 0.03f, center = Offset(body.x + bx * 0.52f, body.y - by * 0.52f))
+
+        // Feet, in front of the body: little glossy blobs
+        if (feet) {
+            for (side in listOf(-1f, 1f)) {
+                val fc = Offset(body.x + side * bx * 0.48f, center.y + ry * 0.97f)
+                val fw = rx * 0.44f
+                val fh = ry * 0.27f
+                drawOval(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFFF7F3FF), Color(0xFFDCCBFB), Color(0xFFC9B7F6)),
+                        startY = fc.y - fh / 2, endY = fc.y + fh / 2
+                    ),
+                    topLeft = Offset(fc.x - fw / 2, fc.y - fh / 2), size = Size(fw, fh), alpha = 0.95f
+                )
+                drawOval(Color.White.copy(alpha = 0.9f), topLeft = Offset(fc.x - fw / 2, fc.y - fh / 2), size = Size(fw, fh), style = Stroke(width = bx * 0.012f))
+                drawOval(
+                    Color.White.copy(alpha = 0.85f),
+                    topLeft = Offset(fc.x - fw * 0.28f, fc.y - fh * 0.32f), size = Size(fw * 0.30f, fh * 0.26f)
+                )
+            }
+        }
 
         drawFace(body, bx, by, face, pose, layout)
     }
@@ -239,8 +251,8 @@ private fun DrawScope.drawSprouts(body: Offset, bx: Float, by: Float, kind: Spro
             // A two-leaf sprout at the upper left and upper right, plus little rays of light
             for (side in listOf(-1f, 1f)) {
                 val base = Offset(body.x + side * bx * 0.66f, body.y - by * 0.70f)
-                leaf(base, side * 18f + wiggle * side, by * 0.42f, bx * 0.13f)
-                leaf(base, side * 70f + wiggle * side, by * 0.40f, bx * 0.13f)
+                leaf(base, side * 14f + wiggle * side, by * 0.50f, bx * 0.15f)
+                leaf(base, side * 68f + wiggle * side, by * 0.46f, bx * 0.15f)
             }
             val rayC = Offset(body.x, body.y - by * 1.32f)
             for ((i, a) in listOf(-28f, 0f, 28f).withIndex()) {
@@ -256,16 +268,16 @@ private fun DrawScope.drawSprouts(body: Offset, bx: Float, by: Float, kind: Spro
             }
         }
         Sprouts.Stems -> {
-            // A single leaf on a thin stem each side (the To-do mascot)
+            // A single big leaf on a short stem each side (the To-do mascot)
             for (side in listOf(-1f, 1f)) {
-                val root = Offset(body.x + side * bx * 0.62f, body.y - by * 0.72f)
-                val top = Offset(root.x + side * bx * 0.10f + wiggle * 0.6f, root.y - by * 0.42f)
+                val root = Offset(body.x + side * bx * 0.60f, body.y - by * 0.78f)
+                val top = Offset(root.x + side * bx * 0.06f + wiggle * 0.5f, root.y - by * 0.22f)
                 val stem = Path().apply {
                     moveTo(root.x, root.y)
-                    quadraticBezierTo(root.x + side * bx * 0.02f, root.y - by * 0.25f, top.x, top.y)
+                    quadraticBezierTo(root.x, root.y - by * 0.12f, top.x, top.y)
                 }
-                drawPath(stem, Color(0xFFE6ECFF).copy(alpha = 0.9f), style = Stroke(width = bx * 0.025f, cap = StrokeCap.Round))
-                leaf(top, side * 28f + wiggle * side, by * 0.40f, bx * 0.13f)
+                drawPath(stem, Color(0xFFEEF1FF).copy(alpha = 0.95f), style = Stroke(width = bx * 0.03f, cap = StrokeCap.Round))
+                leaf(top, side * 32f + wiggle * side, by * 0.50f, bx * 0.17f)
             }
         }
         Sprouts.None -> Unit
@@ -277,7 +289,7 @@ private fun DrawScope.drawFace(body: Offset, bx: Float, by: Float, face: Face, p
     val s = bx * l.eyeSize
     val look = Offset(pose.look.x * bx * 0.04f, pose.look.y * by * 0.04f)
     val eyeY = body.y + by * l.eyeDy
-    val stroke = s * 0.055f
+    val stroke = s * 0.042f
 
     // Blush first, so eyes sit on top
     if (face.blush > 0f) {
@@ -302,7 +314,7 @@ private fun DrawScope.drawFace(body: Offset, bx: Float, by: Float, face: Face, p
         }
         when (kind) {
             Eyes.Happy -> {
-                val w = s * 0.13f
+                val w = s * 0.115f
                 val p = Path().apply {
                     moveTo(e.x - w, e.y + w * 0.35f)
                     quadraticBezierTo(e.x, e.y - w * 0.9f, e.x + w, e.y + w * 0.35f)
@@ -321,8 +333,8 @@ private fun DrawScope.drawFace(body: Offset, bx: Float, by: Float, face: Face, p
             Eyes.Stars -> sparkle(e, s * 0.12f, Color(0xFFFFC94D))
             Eyes.Open, Eyes.Wide, Eyes.Wink -> {
                 val big = kind == Eyes.Wide
-                val ew = s * (if (big) 0.12f else 0.095f)
-                val eh = s * (if (big) 0.15f else 0.12f) * pose.eyeOpen.coerceIn(0.08f, 1f)
+                val ew = s * (if (big) 0.14f else 0.12f)
+                val eh = s * (if (big) 0.17f else 0.14f) * pose.eyeOpen.coerceIn(0.08f, 1f)
                 drawOval(ink, topLeft = Offset(e.x - ew / 2, e.y - eh / 2), size = Size(ew, eh))
                 if (pose.eyeOpen > 0.5f) {
                     drawCircle(Color.White, radius = ew * 0.26f, center = Offset(e.x + ew * 0.16f, e.y - eh * 0.18f))
@@ -350,8 +362,8 @@ private fun DrawScope.drawFace(body: Offset, bx: Float, by: Float, face: Face, p
             drawPath(p, ink, style = Stroke(stroke * 0.9f, cap = StrokeCap.Round))
         }
         Mouth.Grin, Mouth.Laugh -> {
-            val w = ms * (if (face.mouth == Mouth.Laugh) 0.13f else 0.08f)
-            val h = ms * (if (face.mouth == Mouth.Laugh) 0.13f else 0.08f)
+            val w = ms * (if (face.mouth == Mouth.Laugh) 0.115f else 0.07f)
+            val h = ms * (if (face.mouth == Mouth.Laugh) 0.115f else 0.07f)
             val p = Path().apply {
                 moveTo(m.x - w, m.y - h * 0.15f)
                 cubicTo(m.x - w * 0.9f, m.y + h * 1.05f, m.x + w * 0.9f, m.y + h * 1.05f, m.x + w, m.y - h * 0.15f)
