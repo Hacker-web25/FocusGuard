@@ -89,17 +89,18 @@ fun DrawScope.drawJelly(
     val body = Offset(center.x, center.y + (ry - by))
 
     // Soft white haze around the whole character (the sun is behind them)
-    val glowA = 0.50f + 0.30f * pose.glow + 0.25f * brightness
+    val glowA = (0.62f + 0.30f * pose.glow + 0.30f * brightness).coerceAtMost(1f)
     scale(1f, by / bx, pivot = body) {
         drawCircle(
             Brush.radialGradient(
                 0f to Color.White.copy(alpha = glowA),
-                0.62f to Color.White.copy(alpha = glowA * 0.85f),
-                0.74f to Color(0xFFF8EEFF).copy(alpha = glowA * 0.45f),
+                0.64f to Color.White.copy(alpha = glowA * 0.9f),
+                0.75f to Color(0xFFFBF1FF).copy(alpha = glowA * 0.55f),
+                0.88f to Color(0xFFF8EAFF).copy(alpha = glowA * 0.18f),
                 1f to Color.Transparent,
-                center = body, radius = bx * 1.38f
+                center = body, radius = bx * 1.5f
             ),
-            radius = bx * 1.38f, center = body
+            radius = bx * 1.5f, center = body
         )
     }
 
@@ -207,9 +208,9 @@ fun DrawScope.drawJelly(
         // Feet, in front of the body: little glossy blobs
         if (feet) {
             for (side in listOf(-1f, 1f)) {
-                val fc = Offset(body.x + side * bx * 0.48f, center.y + ry * 0.97f)
-                val fw = rx * 0.44f
-                val fh = ry * 0.27f
+                val fc = Offset(body.x + side * bx * 0.50f, center.y + ry * 0.90f)
+                val fw = rx * 0.42f
+                val fh = ry * 0.33f
                 drawOval(
                     Brush.verticalGradient(
                         listOf(Color(0xFFF1EBFF), Color(0xFFD5C4FA), Color(0xFFC0ADF4)),

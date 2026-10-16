@@ -370,7 +370,7 @@ fun AudienceStage(
                     else -> faceFor(m, index, phase, cheer.coerceIn(0, 5))
                 }
                 val layout = if (m.main) FaceLayout(eyeDx = 0.27f, eyeDy = -0.25f, eyeSize = 1.0f, mouthDy = 0.04f, mouthSize = 1.1f, blushDx = 0.48f, blushDy = 0.07f)
-                else FaceLayout(eyeDx = 0.36f, eyeDy = -0.20f, eyeSize = 0.92f, mouthDy = 0.0f, blushDx = 0.46f, blushDy = 0.0f)
+                else FaceLayout(eyeDx = 0.36f, eyeDy = -0.20f, eyeSize = 1.08f, mouthDy = 0.0f, blushDx = 0.47f, blushDy = 0.0f)
                 drawJelly(
                     c = p(m.cx, m.cy),
                     rx = mpx(m.rx), ry = mpx(m.ry),

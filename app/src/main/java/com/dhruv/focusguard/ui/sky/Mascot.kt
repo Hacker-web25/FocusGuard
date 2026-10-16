@@ -163,7 +163,7 @@ fun Mascot(
             sprouts = Sprouts.Stems,
             warmth = 0f,
             time = time,
-            brightness = 0.35f + 0.4f * done
+            brightness = 0.55f + 0.4f * done
         )
 
         if (done >= 1f) {
@@ -216,12 +216,12 @@ private fun DrawScope.drawRock(ox: Int, oy: Int) {
     // Moss cushions with a few blades of grass
     for ((cx, w) in listOf(624f to 56f, 868f to 64f)) {
         drawOval(
-            Brush.verticalGradient(listOf(Color(0xFF8DBB9C), Color(0xFF557F72)), startY = pt(0f, 354f).y, endY = pt(0f, 366f).y),
-            topLeft = pt(cx - w / 2, 355f), size = Size(mpx(w), mpx(10f))
+            Brush.verticalGradient(listOf(Color(0xFF7DA592), Color(0xFF4E7266)), startY = pt(0f, 354f).y, endY = pt(0f, 366f).y),
+            topLeft = pt(cx - w / 2, 356f), size = Size(mpx(w), mpx(9f)), alpha = 0.9f
         )
         for (k in 0 until 5) {
             val bx = cx - w * 0.35f + k * w * 0.17f
-            val h = 9f + (k % 3) * 5f
+            val h = 11f + (k % 3) * 6f
             val lean = if (k % 2 == 0) -3f else 3f
             val blade = Path().apply {
                 moveTo(pt(bx - 2f, 357f).x, pt(bx - 2f, 357f).y)
@@ -229,7 +229,7 @@ private fun DrawScope.drawRock(ox: Int, oy: Int) {
                 quadraticBezierTo(pt(bx + lean * 0.3f + 1f, 357f - h * 0.5f).x, pt(bx + lean * 0.3f + 1f, 357f - h * 0.5f).y, pt(bx + 2f, 357f).x, pt(bx + 2f, 357f).y)
                 close()
             }
-            drawPath(blade, Color(0xFF6FA08E))
+            drawPath(blade, Color(0xFF5E8C7C))
         }
     }
 }
