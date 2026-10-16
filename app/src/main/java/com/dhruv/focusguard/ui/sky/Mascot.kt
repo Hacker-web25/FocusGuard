@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.withInfiniteAnimationFrameNanos
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import com.dhruv.focusguard.guard.Haptics
 import kotlin.math.abs
 import kotlin.math.cos
