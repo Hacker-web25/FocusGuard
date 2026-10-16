@@ -1,0 +1,62 @@
+name: UI screenshots
+
+# Renders the Compose screens on the JVM and publishes the PNGs to the
+# `screens` branch, so the UI can be compared with the design mockups
+# without a phone. Runs on the UI work branch only; main keeps building
+# the APK as before.
+on:
+  push:
+    branches: [ui-work]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  screens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      - name: Install SDK platform
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Compile the app
+        run: gradle compileDebugKotlin
+
+      - name: Render screenshots
+        run: gradle recordRoborazziDebug --tests 'com.dhruv.focusguard.ScreenshotTest' --stacktrace
+
+      - name: Publish to the screens branch
+        if: always()
+        run: |
+          mkdir -p out
+          find app -path '*roborazzi*' -name '*.png' -exec cp {} out/ \; || true
+          find app/build -name 'TEST-*.xml' -exec cp {} out/ \; || true
+          cd out
+          echo "run ${{ github.run_number }} at ${{ github.sha }}" > RUN.txt
+          git init -q
+          git config user.name "screens-bot"
+          git config user.email "screens-bot@users.noreply.github.com"
+          git checkout -q -b screens
+          git add -A
+          git commit -q -m "Screens for ${{ github.sha }}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" screens
