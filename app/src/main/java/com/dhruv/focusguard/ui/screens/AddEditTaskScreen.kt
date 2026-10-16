@@ -85,6 +85,7 @@ fun AddEditTaskScreen(
     var description by remember { mutableStateOf("") }
     var priority by remember { mutableStateOf(Priority.MEDIUM) }
     var deadline by remember { mutableStateOf<Long?>(null) }
+    var durationMinutes by remember { mutableStateOf(0) }
     var selectedGoalId by remember { mutableStateOf<Long?>(null) }
     var isLoaded by remember { mutableStateOf(taskId == null) }
     var existingTask by remember { mutableStateOf<Task?>(null) }
@@ -100,6 +101,7 @@ fun AddEditTaskScreen(
                 description = t.description
                 priority = t.priority
                 deadline = t.deadline
+                durationMinutes = t.durationMinutes
                 selectedGoalId = t.goalId
             }
             isLoaded = true
@@ -253,6 +255,28 @@ fun AddEditTaskScreen(
                     }
                 }
 
+                // Planned focus time: what the focus timer starts at for this task
+                Column {
+                    SectionLabel("Focus time")
+                    Spacer(Modifier.height(Space.xs))
+                    DURATION_OPTIONS.chunked(4).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Space.xs)
+                        ) {
+                            row.forEach { minutes ->
+                                SelectableChip(
+                                    text = durationLabel(minutes),
+                                    selected = durationMinutes == minutes,
+                                    onClick = { durationMinutes = minutes },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(Space.xs))
+                    }
+                }
+
                 // Priority
                 Column {
                     SectionLabel("Priority")
@@ -323,7 +347,8 @@ fun AddEditTaskScreen(
                             goalId = selectedGoalId,
                             isCompleted = existingTask?.isCompleted ?: false,
                             completedAt = existingTask?.completedAt,
-                            createdAt = existingTask?.createdAt ?: System.currentTimeMillis()
+                            createdAt = existingTask?.createdAt ?: System.currentTimeMillis(),
+                            durationMinutes = durationMinutes
                         )
                         viewModel.saveTask(task)
                         onBack()
@@ -334,6 +359,16 @@ fun AddEditTaskScreen(
             }
         }
     }
+}
+
+private val DURATION_OPTIONS = listOf(0, 15, 25, 30, 45, 60, 90, 120)
+
+/** "None", "25m", "1h", "1h 30m". */
+private fun durationLabel(minutes: Int): String = when {
+    minutes <= 0 -> "None"
+    minutes < 60 -> "${minutes}m"
+    minutes % 60 == 0 -> "${minutes / 60}h"
+    else -> "${minutes / 60}h ${minutes % 60}m"
 }
 
 /** Soft circular header action. Carries its own accessibility label. */

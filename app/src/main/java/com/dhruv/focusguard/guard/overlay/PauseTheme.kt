@@ -189,8 +189,11 @@ fun ScaledToWidth(content: @Composable () -> Unit) {
 // ═════════════════════════════════════════════════════════════════
 
 @Stable
-class Backdrop(val image: ImageBitmap?) {
-    fun draw(scope: DrawScope, screen: Size) {
+open class Backdrop(val image: ImageBitmap?) {
+    /** Identifies what this backdrop paints, for the raster cache. */
+    open val cacheKey: String get() = "pause:${image?.hashCode() ?: 0}"
+
+    open fun draw(scope: DrawScope, screen: Size) {
         if (image != null) scope.drawCover(image, screen) else scope.drawSky(screen)
     }
 }
@@ -223,18 +226,26 @@ class BackdropRaster(val sharp: ImageBitmap, val blurred: ImageBitmap)
 
 val LocalRaster = staticCompositionLocalOf<BackdropRaster?> { null }
 
+/** The last few rasters (pause sky, To-do sky, focus sky), most recent last. */
 private object RasterCache {
-    private var key: String = ""
-    private var value: BackdropRaster? = null
+    private val entries = object : LinkedHashMap<String, BackdropRaster>(4, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, BackdropRaster>?) = size > 3
+    }
 
     @Synchronized
-    fun get(k: String): BackdropRaster? = if (k == key) value else null
+    fun get(k: String): BackdropRaster? = entries[k]
 
     @Synchronized
     fun put(k: String, raster: BackdropRaster) {
-        key = k
-        value = raster
+        entries[k] = raster
     }
+}
+
+/** Screenshot tests set this so rasters and images are built before the first frame. */
+object RasterPolicy {
+    @Volatile
+    @JvmField
+    var synchronous = false
 }
 
 /** Builds (or reuses) the rasters for this screen size and backdrop. */
@@ -243,24 +254,26 @@ fun rememberBackdropRaster(backdrop: Backdrop, screen: Size): BackdropRaster? {
     val density = LocalDensity.current
     val w = screen.width.toInt()
     val h = screen.height.toInt()
-    val key = "${w}x$h:${backdrop.image?.hashCode() ?: 0}"
+    val key = "${w}x$h:${backdrop.cacheKey}"
+    if (RasterPolicy.synchronous) {
+        return remember(key) { RasterCache.get(key) ?: buildRaster(backdrop, w, h, density, key) }
+    }
     val raster by produceState<BackdropRaster?>(initialValue = RasterCache.get(key), key) {
         if (value != null || w < 2 || h < 2) return@produceState
-        value = withContext(Dispatchers.Default) {
-            try {
-                val sharp = rasterise(w / 2, h / 2, density) { size ->
-                    backdrop.draw(this, size)
-                }
-                val small = rasterise(
-                    (w / 10).coerceAtLeast(16), (h / 10).coerceAtLeast(16), density
-                ) { size -> backdrop.draw(this, size) }
-                BackdropRaster(sharp, boxBlur(small, 2)).also { RasterCache.put(key, it) }
-            } catch (e: Throwable) {
-                null // out of memory on a small device: fall back to drawing live
-            }
-        }
+        value = withContext(Dispatchers.Default) { buildRaster(backdrop, w, h, density, key) }
     }
     return raster
+}
+
+private fun buildRaster(backdrop: Backdrop, w: Int, h: Int, density: Density, key: String): BackdropRaster? {
+    if (w < 2 || h < 2) return null
+    return try {
+        val sharp = rasterise(w / 2, h / 2, density) { size -> backdrop.draw(this, size) }
+        val small = rasterise((w / 10).coerceAtLeast(16), (h / 10).coerceAtLeast(16), density) { size -> backdrop.draw(this, size) }
+        BackdropRaster(sharp, boxBlur(small, 2)).also { RasterCache.put(key, it) }
+    } catch (e: Throwable) {
+        null // out of memory on a small device: fall back to drawing live
+    }
 }
 
 /** Draw [block] into an off-screen bitmap of the given pixel size. */

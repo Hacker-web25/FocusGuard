@@ -1,5 +1,6 @@
 package com.dhruv.focusguard.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -26,5 +27,7 @@ data class Task(
     val goalId: Long? = null,            // linked long-term goal
     val isCompleted: Boolean = false,
     val completedAt: Long? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** Planned focus time in minutes (0 = not set). Seeds the focus timer. */
+    @ColumnInfo(defaultValue = "0") val durationMinutes: Int = 0
 )

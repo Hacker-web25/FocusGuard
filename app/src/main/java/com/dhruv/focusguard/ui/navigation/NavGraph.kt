@@ -39,7 +39,9 @@ import com.dhruv.focusguard.ui.screens.GoalsScreen
 import com.dhruv.focusguard.ui.screens.OnboardingScreen
 import com.dhruv.focusguard.ui.screens.LimitScreen
 import com.dhruv.focusguard.ui.screens.SettingsScreen
-import com.dhruv.focusguard.ui.screens.TaskListScreen
+import com.dhruv.focusguard.ui.focus.FocusMode
+import com.dhruv.focusguard.ui.screens.FocusRoute
+import com.dhruv.focusguard.ui.screens.TodoRoute
 import com.dhruv.focusguard.ui.theme.mindful
 import com.dhruv.focusguard.ui.viewmodel.TaskViewModel
 
@@ -56,7 +58,15 @@ private const val ONBOARDING = "onboarding"
 
 /** The daily budget / cool-down page, opened from the Tasks screen. */
 const val LIMIT_ROUTE = "daily_limit"
-private val fullScreenRoutes = setOf("add_task", "edit_task/{taskId}", ONBOARDING)
+
+/** Timer / stopwatch, optionally for a task. */
+private const val FOCUS_ROUTE = "focus/{mode}?task={task}"
+private fun focusRoute(mode: FocusMode, taskId: Long?) = "focus/${mode.name}?task=${taskId ?: -1L}"
+
+private val fullScreenRoutes = setOf("add_task", "edit_task/{taskId}", ONBOARDING, FOCUS_ROUTE)
+
+/** Screens painted edge to edge on the sky; they draw their own bars. */
+private val skyRoutes = setOf(Screen.Tasks.route, FOCUS_ROUTE)
 
 @Composable
 fun AppNavGraph(
@@ -69,7 +79,8 @@ fun AppNavGraph(
     val navController = rememberNavController()
     val currentBackStack by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStack?.destination?.route
-    val showBottomBar = currentRoute != null && currentRoute !in fullScreenRoutes
+    val onSky = currentRoute in skyRoutes
+    val showBottomBar = currentRoute != null && currentRoute !in fullScreenRoutes && !onSky
     val startRoute = remember { if (viewModel.onboardingDone) Screen.Tasks.route else ONBOARDING }
     val context = LocalContext.current
     val protection = rememberProtectionState()
@@ -87,7 +98,7 @@ fun AppNavGraph(
         containerColor = c.canvas,
         topBar = {
             // Loud, persistent warning on the main tabs whenever the guard is down
-            if (showBottomBar && !protection.running) {
+            if (showBottomBar && !onSky && !protection.running) {
                 ProtectionBanner(onFix = { context.openAccessibilitySettings() })
             }
         },
@@ -109,15 +120,7 @@ fun AppNavGraph(
                             val selected = currentRoute == screen.route
                             NavigationBarItem(
                                 selected = selected,
-                                onClick = {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
+                                onClick = { navController.navigateTab(screen.route) },
                                 icon = {
                                     Icon(
                                         imageVector = screen.icon,
@@ -144,12 +147,14 @@ fun AppNavGraph(
             }
         }
     ) { innerPadding ->
+        // The sky screens ignore the scaffold padding and draw under the system bars.
+        val padded = Modifier.padding(innerPadding)
         NavHost(
             navController = navController,
-            startDestination = startRoute,
-            modifier = Modifier.padding(innerPadding)
+            startDestination = startRoute
         ) {
             composable(ONBOARDING) {
+                Box(padded) {
                 OnboardingScreen(
                     viewModel = viewModel,
                     onFinished = {
@@ -158,38 +163,63 @@ fun AppNavGraph(
                         }
                     }
                 )
+                }
             }
 
             composable(Screen.Tasks.route) {
-                TaskListScreen(
+                TodoRoute(
                     viewModel = viewModel,
                     onAddTask = { navController.navigate("add_task") },
                     onEditTask = { id -> navController.navigate("edit_task/$id") },
-                    onOpenLimit = { navController.navigate(LIMIT_ROUTE) }
+                    onFocus = { mode, taskId -> navController.navigate(focusRoute(mode, taskId)) },
+                    onGoals = { navController.navigateTab(Screen.Goals.route) },
+                    onSettings = { navController.navigateTab(Screen.Settings.route) }
+                )
+            }
+
+            composable(
+                FOCUS_ROUTE,
+                arguments = listOf(
+                    navArgument("mode") { type = NavType.StringType },
+                    navArgument("task") { type = NavType.LongType; defaultValue = -1L }
+                )
+            ) { entry ->
+                val mode = runCatching { FocusMode.valueOf(entry.arguments?.getString("mode") ?: "") }.getOrDefault(FocusMode.Timer)
+                val taskId = entry.arguments?.getLong("task")?.takeIf { it > 0 }
+                FocusRoute(
+                    viewModel = viewModel,
+                    mode = mode,
+                    taskId = taskId,
+                    onBack = { navController.popBackStack() },
+                    onEditTask = { id -> navController.navigate("edit_task/$id") }
                 )
             }
 
             composable(LIMIT_ROUTE) {
-                LimitScreen(viewModel = viewModel)
+                Box(padded) { LimitScreen(viewModel = viewModel) }
             }
 
             composable(Screen.Goals.route) {
-                GoalsScreen(viewModel = viewModel)
+                Box(padded) { GoalsScreen(viewModel = viewModel) }
             }
 
             composable(Screen.Settings.route) {
-                SettingsScreen(
-                    viewModel = viewModel,
-                    onOpenLimit = { navController.navigate(LIMIT_ROUTE) }
-                )
+                Box(padded) {
+                    SettingsScreen(
+                        viewModel = viewModel,
+                        onOpenLimit = { navController.navigate(LIMIT_ROUTE) }
+                    )
+                }
             }
 
             composable("add_task") {
-                AddEditTaskScreen(
-                    viewModel = viewModel,
-                    taskId = null,
-                    onBack = { navController.popBackStack() }
-                )
+                Box(padded) {
+                    AddEditTaskScreen(
+                        viewModel = viewModel,
+                        taskId = null,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
 
             composable(
@@ -197,12 +227,23 @@ fun AppNavGraph(
                 arguments = listOf(navArgument("taskId") { type = NavType.LongType })
             ) { backStackEntry ->
                 val taskId = backStackEntry.arguments?.getLong("taskId")
-                AddEditTaskScreen(
-                    viewModel = viewModel,
-                    taskId = taskId,
-                    onBack = { navController.popBackStack() }
-                )
+                Box(padded) {
+                    AddEditTaskScreen(
+                        viewModel = viewModel,
+                        taskId = taskId,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
         }
+    }
+}
+
+/** Switch bottom tabs the standard way: one copy of each, state kept. */
+private fun androidx.navigation.NavController.navigateTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.startDestinationId) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }
