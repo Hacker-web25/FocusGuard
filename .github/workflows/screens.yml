@@ -49,7 +49,7 @@ jobs:
         if: always()
         run: |
           mkdir -p out
-          find app -path '*roborazzi*' -name '*.png' -exec cp {} out/ \; || true
+          find app/build/screens app/build/outputs/roborazzi -name '*.png' -exec cp {} out/ \; 2>/dev/null || true
           find app/build -name 'TEST-*.xml' -exec cp {} out/ \; || true
           cd out
           echo "run ${{ github.run_number }} at ${{ github.sha }}" > RUN.txt
