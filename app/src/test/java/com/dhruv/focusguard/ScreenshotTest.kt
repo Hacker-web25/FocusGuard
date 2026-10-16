@@ -91,4 +91,31 @@ class ScreenshotTest {
     fun stopwatch_paused_phone() = captureRoboImage("build/screens/stopwatch_paused_phone.png") {
         Focus(FocusSession(FocusMode.Stopwatch, 1L, 25 * 60_000L, bankedMs = 12 * 60_000L + 34_000L), false, 1_000L)
     }
+
+    @Test
+    @Config(qualifiers = "w393dp-h873dp-440dpi")
+    fun focus_finished_phone() = captureRoboImage("build/screens/focus_finished_phone.png") {
+        Focus(FocusSession(FocusMode.Timer, 1L, 90 * 60_000L, bankedMs = 90 * 60_000L, finished = true), false, 1_000L)
+    }
+
+    @Test
+    @Config(qualifiers = "w393dp-h873dp-440dpi")
+    fun todo_done_phone() = captureRoboImage("build/screens/todo_done_phone.png") {
+        val done = tasks.mapIndexed { i, t -> if (i == 1 || i == 3) t.copy(isCompleted = true, completedAt = now) else t }
+        TodoContent(
+            name = "Aryan", now = now, day = now, tasks = done.sortedBy { it.isCompleted }, mood = 0.4f, celebrate = 0,
+            protectionDown = true, onFixProtection = {}, onPickDay = {}, onToggle = {}, onOpen = {}, onEdit = {},
+            onTimer = {}, onStopwatch = {}, onAdd = {}, onGoals = {}, onSettings = {}
+        )
+    }
+
+    @Test
+    @Config(qualifiers = "w393dp-h873dp-440dpi")
+    fun todo_empty_phone() = captureRoboImage("build/screens/todo_empty_phone.png") {
+        TodoContent(
+            name = "Aryan", now = now, day = now, tasks = emptyList(), mood = 0f, celebrate = 0,
+            protectionDown = false, onFixProtection = {}, onPickDay = {}, onToggle = {}, onOpen = {}, onEdit = {},
+            onTimer = {}, onStopwatch = {}, onAdd = {}, onGoals = {}, onSettings = {}
+        )
+    }
 }

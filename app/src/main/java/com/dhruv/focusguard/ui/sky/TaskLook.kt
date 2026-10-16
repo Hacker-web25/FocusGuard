@@ -39,10 +39,19 @@ private val keywords: List<Pair<TaskKind, List<String>>> = listOf(
     TaskKind.Work to listOf(" work", "meeting", " email", " mail", " client", " project", " deploy", " review", " call", " pitch", " invoice")
 )
 
+/** Endings a word may add to a keyword stem: "read" matches "reads", "reading", not "ready". */
+private val SUFFIXES = setOf("", "s", "es", "ing", "ed", "er", "ers")
+
 fun kindOf(task: Task): TaskKind {
     val text = " " + (task.title + " " + task.description).lowercase(Locale.getDefault())
         .replace(Regex("[^a-z0-9.]+"), " ") + " "
-    return keywords.firstOrNull { (_, words) -> words.any { text.contains(it) } }?.first ?: TaskKind.General
+    val words = text.split(' ').filter { it.isNotEmpty() }
+    fun hit(k: String): Boolean =
+        if (k.startsWith(" ")) {
+            val stem = k.trim()
+            words.any { w -> w.startsWith(stem) && w.removePrefix(stem) in SUFFIXES }
+        } else text.contains(k)
+    return keywords.firstOrNull { (_, ks) -> ks.any(::hit) }?.first ?: TaskKind.General
 }
 
 /** The line under the title: the task's own notes, else its kind's motto. */

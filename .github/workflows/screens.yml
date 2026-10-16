@@ -48,7 +48,7 @@ jobs:
         timeout-minutes: 12
         run: |
           set -o pipefail
-          gradle recordRoborazziDebug --tests 'com.dhruv.focusguard.ScreenshotTest' 2>&1 | tee render.log
+          gradle recordRoborazziDebug --tests 'com.dhruv.focusguard.*' 2>&1 | tee render.log
 
       - name: Publish to the screens branch
         if: always()
