@@ -40,10 +40,14 @@ jobs:
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Compile the app
-        run: gradle compileDebugKotlin
+        run: |
+          set -o pipefail
+          gradle compileDebugKotlin 2>&1 | tee compile.log
 
       - name: Render screenshots
-        run: gradle recordRoborazziDebug --tests 'com.dhruv.focusguard.ScreenshotTest' --stacktrace
+        run: |
+          set -o pipefail
+          gradle recordRoborazziDebug --tests 'com.dhruv.focusguard.ScreenshotTest' 2>&1 | tee render.log
 
       - name: Publish to the screens branch
         if: always()
@@ -51,6 +55,8 @@ jobs:
           mkdir -p out
           find app/build/screens app/build/outputs/roborazzi -name '*.png' -exec cp {} out/ \; 2>/dev/null || true
           find app/build -name 'TEST-*.xml' -exec cp {} out/ \; || true
+          cp compile.log render.log out/ 2>/dev/null || true
+          grep -E "^e: |^w: .*(unresolved|Unresolved)" compile.log > out/ERRORS.txt 2>/dev/null || true
           cd out
           echo "run ${{ github.run_number }} at ${{ github.sha }}" > RUN.txt
           git init -q
