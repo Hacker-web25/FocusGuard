@@ -31,6 +31,7 @@ class ScreenshotTest {
     @Before
     fun setUp() {
         RasterPolicy.synchronous = true
+        com.dhruv.focusguard.ui.sky.SkyMotion.enabled = false
     }
 
     private val now: Long = Calendar.getInstance().apply { set(2026, Calendar.OCTOBER, 16, 8, 31, 0) }.timeInMillis

@@ -66,6 +66,13 @@ val Number.mp: Dp get() = (toFloat() * MP).dp
 /** Mockup pixels → sp (font sizes measured off the mockups). */
 val Number.ms: TextUnit get() = (toFloat() * MP).sp
 
+/** Screenshot tests turn the endless animations off so a frame can be captured. */
+object SkyMotion {
+    @Volatile
+    @JvmField
+    var enabled = true
+}
+
 // ═════════════════════════════════════════════════════════════════
 //  Type: the mockups are set in Google Sans (OFL), bundled.
 // ═════════════════════════════════════════════════════════════════

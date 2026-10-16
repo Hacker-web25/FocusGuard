@@ -105,6 +105,7 @@ import com.dhruv.focusguard.ui.sky.GSans
 import com.dhruv.focusguard.ui.sky.STAGE_TOP
 import com.dhruv.focusguard.ui.sky.Sky
 import com.dhruv.focusguard.ui.sky.SkyFit
+import com.dhruv.focusguard.ui.sky.SkyMotion
 import com.dhruv.focusguard.ui.sky.SkyScaffold
 import com.dhruv.focusguard.ui.sky.StagePhase
 import com.dhruv.focusguard.ui.sky.TaskKind
@@ -204,7 +205,7 @@ fun FocusContent(
     val now = remember { mutableLongStateOf(clock()) }
     LaunchedEffect(session.running) {
         now.longValue = clock()
-        while (session.running) {
+        while (session.running && SkyMotion.enabled) {
             withInfiniteAnimationFrameNanos { now.longValue = clock() }
         }
     }
@@ -466,8 +467,10 @@ private fun TimerRing(
         animationSpec = if (dragMinutes != null) spring(stiffness = 900f) else tween(450, easing = FastOutSlowInEasing),
         label = "dragArc"
     )
-    val pulse = rememberInfiniteTransition(label = "ring")
-    val glowT = pulse.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "glow")
+    val glowT: State<Float> = if (SkyMotion.enabled) {
+        val pulse = rememberInfiniteTransition(label = "ring")
+        pulse.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "glow")
+    } else remember { mutableStateOf(0f) }
     val pop = remember { Animatable(1f) }
     LaunchedEffect(phase) {
         if (phase == FocusPhase.Running || phase == FocusPhase.Finished) {

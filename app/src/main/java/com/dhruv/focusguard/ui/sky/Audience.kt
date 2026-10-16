@@ -196,6 +196,7 @@ fun AudienceStage(
     // fields; only `frame` is state, read in the Canvas, so this repaints
     // without recomposing.
     LaunchedEffect(Unit) {
+        if (!SkyMotion.enabled) return@LaunchedEffect
         var last = 0L
         while (true) {
             withInfiniteAnimationFrameNanos { now ->

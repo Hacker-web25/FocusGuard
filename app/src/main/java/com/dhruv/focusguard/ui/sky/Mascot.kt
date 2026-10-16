@@ -82,6 +82,7 @@ fun Mascot(
     }
 
     LaunchedEffect(Unit) {
+        if (!SkyMotion.enabled) return@LaunchedEffect
         var last = 0L
         while (true) {
             withInfiniteAnimationFrameNanos { now ->
