@@ -256,6 +256,8 @@ fun FocusContent(
     var showPicker by remember { mutableStateOf(false) }
 
     SkyScaffold(res = R.drawable.sky_focus, fit = SkyFit.Cover) {
+        // Petals drifting down the sky, as in the mockup
+        if (SkyMotion.enabled) com.dhruv.focusguard.guard.overlay.FallingPetals()
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val ky = (maxHeight.value / (1536f * com.dhruv.focusguard.ui.sky.MP)).coerceAtLeast(1f)
             fun y(v: Number) = v.toFloat() * ky
