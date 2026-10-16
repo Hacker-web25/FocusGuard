@@ -58,10 +58,10 @@ class BubblePose(
 )
 
 private val BodyStops = arrayOf(
-    0f to Color(0xFF9DB4FB),
-    0.42f to Color(0xFFAFB4FD),
-    0.72f to Color(0xFFDCC6FB),
-    1f to Color(0xFFFBDDF8)
+    0f to Color(0xFFA3B9FC),
+    0.40f to Color(0xFFB2B3FD),
+    0.72f to Color(0xFFD9BDF9),
+    1f to Color(0xFFF6CBF1)
 )
 
 /**
@@ -121,22 +121,22 @@ fun DrawScope.drawJelly(
             // Blue core behind the face
             drawOval(
                 Brush.radialGradient(
-                    listOf(Color(0xFF94B4FC).copy(alpha = 0.55f), Color.Transparent),
-                    center = Offset(body.x - bx * 0.05f, body.y - by * 0.12f), radius = bx * 0.72f
+                    listOf(Color(0xFF8AACFB).copy(alpha = 0.70f), Color.Transparent),
+                    center = Offset(body.x - bx * 0.05f, body.y - by * 0.15f), radius = bx * 0.70f
                 ),
                 topLeft = oval.topLeft, size = oval.size
             )
             // Pink pooling low on both sides
             drawOval(
                 Brush.radialGradient(
-                    listOf(Color(0xFFF6C3EC).copy(alpha = 0.80f), Color.Transparent),
+                    listOf(Color(0xFFF2B4E6).copy(alpha = 0.85f), Color.Transparent),
                     center = Offset(body.x - bx * 0.45f, body.y + by * 0.62f), radius = bx * 0.70f
                 ),
                 topLeft = oval.topLeft, size = oval.size
             )
             drawOval(
                 Brush.radialGradient(
-                    listOf(Color(0xFFFAD3F0).copy(alpha = 0.75f), Color.Transparent),
+                    listOf(Color(0xFFF7C4EC).copy(alpha = 0.80f), Color.Transparent),
                     center = Offset(body.x + bx * 0.55f, body.y + by * 0.35f), radius = bx * 0.65f
                 ),
                 topLeft = oval.topLeft, size = oval.size
@@ -144,7 +144,7 @@ fun DrawScope.drawJelly(
             // Light from inside, brighter as the character gets happier
             drawOval(
                 Brush.radialGradient(
-                    listOf(Color.White.copy(alpha = 0.30f + 0.30f * brightness + 0.3f * pose.glow), Color.Transparent),
+                    listOf(Color.White.copy(alpha = 0.16f + 0.22f * brightness + 0.3f * pose.glow), Color.Transparent),
                     center = Offset(body.x, body.y + by * 0.50f), radius = bx * 0.80f
                 ),
                 topLeft = oval.topLeft, size = oval.size
@@ -167,8 +167,8 @@ fun DrawScope.drawJelly(
                 drawCircle(
                     Brush.radialGradient(
                         0f to Color.Transparent,
-                        0.70f to Color.Transparent,
-                        0.88f to Color(0xFFFFF4FD).copy(alpha = 0.55f),
+                        0.80f to Color.Transparent,
+                        0.93f to Color(0xFFFFEEFC).copy(alpha = 0.55f),
                         1f to Color.White.copy(alpha = 0.95f),
                         center = body, radius = bx
                     ),
@@ -177,7 +177,7 @@ fun DrawScope.drawJelly(
             }
             // Soft white sheen across the upper left
             drawArc(
-                Color.White.copy(alpha = 0.45f),
+                Color.White.copy(alpha = 0.32f),
                 startAngle = 165f, sweepAngle = 95f, useCenter = false,
                 topLeft = Offset(oval.left + bx * 0.16f, oval.top + by * 0.16f),
                 size = Size(bx * 1.68f, by * 1.68f),
@@ -212,7 +212,7 @@ fun DrawScope.drawJelly(
                 val fh = ry * 0.27f
                 drawOval(
                     Brush.verticalGradient(
-                        listOf(Color(0xFFF7F3FF), Color(0xFFDCCBFB), Color(0xFFC9B7F6)),
+                        listOf(Color(0xFFF1EBFF), Color(0xFFD5C4FA), Color(0xFFC0ADF4)),
                         startY = fc.y - fh / 2, endY = fc.y + fh / 2
                     ),
                     topLeft = Offset(fc.x - fw / 2, fc.y - fh / 2), size = Size(fw, fh), alpha = 0.95f
@@ -297,10 +297,10 @@ private fun DrawScope.drawFace(body: Offset, bx: Float, by: Float, face: Face, p
             val bc = Offset(body.x + side * bx * l.blushDx, body.y + by * l.blushDy)
             drawOval(
                 Brush.radialGradient(
-                    listOf(Sky.Blush.copy(alpha = 0.85f * face.blush), Sky.Blush.copy(alpha = 0f)),
-                    center = bc, radius = s * 0.16f
+                    0f to Sky.Blush.copy(alpha = 0.95f * face.blush), 0.6f to Sky.Blush.copy(alpha = 0.8f * face.blush), 1f to Sky.Blush.copy(alpha = 0f),
+                    center = bc, radius = s * 0.13f
                 ),
-                topLeft = Offset(bc.x - s * 0.16f, bc.y - s * 0.10f), size = Size(s * 0.32f, s * 0.20f)
+                topLeft = Offset(bc.x - s * 0.13f, bc.y - s * 0.085f), size = Size(s * 0.26f, s * 0.17f)
             )
         }
     }

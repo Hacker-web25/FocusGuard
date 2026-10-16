@@ -342,7 +342,17 @@ private class SkyBackdrop(
     }
 }
 
-/** White status-bar icons over the sky, restored when the screen leaves. */
+/**
+ * White status-bar icons over the sky, restored when the last sky screen
+ * leaves. Counted, because during a transition the next sky screen arrives
+ * before the previous one is disposed.
+ */
+private object SkyBars {
+    var count = 0
+    var savedColor: Int? = null
+    var savedLight: Boolean? = null
+}
+
 @Composable
 private fun LightStatusBarIcons() {
     val view = LocalView.current
@@ -350,16 +360,24 @@ private fun LightStatusBarIcons() {
     DisposableEffect(Unit) {
         val window = (view.context as? Activity)?.window
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
-        @Suppress("DEPRECATION")
-        val oldColor = window?.statusBarColor
-        val oldLight = controller?.isAppearanceLightStatusBars
+        if (SkyBars.count == 0) {
+            @Suppress("DEPRECATION")
+            SkyBars.savedColor = window?.statusBarColor
+            SkyBars.savedLight = controller?.isAppearanceLightStatusBars
+        }
+        SkyBars.count++
         @Suppress("DEPRECATION")
         window?.statusBarColor = Color.Transparent.toArgb()
         controller?.isAppearanceLightStatusBars = false
         onDispose {
-            @Suppress("DEPRECATION")
-            if (oldColor != null) window?.statusBarColor = oldColor
-            if (oldLight != null) controller?.isAppearanceLightStatusBars = oldLight
+            SkyBars.count = (SkyBars.count - 1).coerceAtLeast(0)
+            if (SkyBars.count == 0) {
+                val c = SkyBars.savedColor
+                val l = SkyBars.savedLight
+                @Suppress("DEPRECATION")
+                if (c != null) window?.statusBarColor = c
+                if (l != null) controller?.isAppearanceLightStatusBars = l
+            }
         }
     }
 }

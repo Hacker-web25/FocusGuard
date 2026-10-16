@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.ui.text.TextStyle
@@ -429,19 +430,16 @@ private fun faceFor(m: Member, index: Int, phase: StagePhase, cheer: Int): Face 
     }
 }
 
-/** The misty ledge the crowd stands on: soft light, a few pale stones. */
+/** The misty ledge the crowd stands on: a soft band of light. */
 private fun DrawScope.drawGround(oy: Int) {
-    val c = Offset(mpx(500), mpx(1342 - oy))
-    drawOval(
-        androidx.compose.ui.graphics.Brush.radialGradient(
-            listOf(Color.White.copy(alpha = 0.85f), Color(0xFFF3E4F6).copy(alpha = 0.6f), Color.Transparent),
-            center = c, radius = mpx(440)
-        ),
-        topLeft = Offset(c.x - mpx(440), c.y - mpx(30)), size = Size(mpx(880), mpx(60))
-    )
-    for ((x, w, a) in listOf(Triple(205f, 70f, 0.45f), Triple(330f, 110f, 0.55f), Triple(560f, 60f, 0.4f), Triple(690f, 95f, 0.5f))) {
-        val top = Offset(mpx(x), mpx(1336 - oy))
-        drawOval(Color(0xFF9C93BE).copy(alpha = a), topLeft = top, size = Size(mpx(w), mpx(13)))
-        drawOval(Color.White.copy(alpha = a), topLeft = Offset(top.x + mpx(w * 0.15f), top.y), size = Size(mpx(w * 0.6f), mpx(5)))
+    val c = Offset(mpx(500), mpx(1352 - oy))
+    scale(1f, 0.11f, pivot = c) {
+        drawCircle(
+            androidx.compose.ui.graphics.Brush.radialGradient(
+                0f to Color.White.copy(alpha = 0.95f), 0.55f to Color(0xFFF6EAF8).copy(alpha = 0.75f), 1f to Color.Transparent,
+                center = c, radius = mpx(470)
+            ),
+            radius = mpx(470), center = c
+        )
     }
 }

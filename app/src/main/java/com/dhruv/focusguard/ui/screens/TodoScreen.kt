@@ -206,7 +206,7 @@ fun TodoContent(
             val screenH = maxHeight.value / MP              // in mockup px
             val navInset = with(LocalDensity.current) { WindowInsets.navigationBars.getBottom(this).toDp().value } / MP
             val navCenter = screenH - navInset - 84f
-            val cardBottom = navCenter - 60f - 26f
+            val cardBottom = navCenter - 60f - 26f - if (protectionDown) 76f else 0f
 
             // ── Greeting ───────────────────────────────────────────
             Leaf(Modifier.at(50, 133).size(48.mp))
@@ -221,9 +221,6 @@ fun TodoContent(
 
             Mascot(mood = mood, celebrate = celebrate, haptics = haptics, reference = reference, modifier = Modifier.at(MASCOT_X, MASCOT_Y))
 
-            if (protectionDown) {
-                ProtectionPill(onFixProtection, Modifier.at(50, 72))
-            }
 
             // ── The list card ──────────────────────────────────────
             Glass(
@@ -271,6 +268,11 @@ fun TodoContent(
                         }
                     }
                 }
+            }
+
+            // Loud while the Instagram guard is down, just above the bar
+            if (protectionDown) {
+                ProtectionPill(onFixProtection, Modifier.centerAt(512, navCenter - 60f - 46f))
             }
 
             // ── Bottom bar ─────────────────────────────────────────
@@ -477,7 +479,7 @@ private fun TaskRow(task: Task, now: Long, haptics: Haptics?, onToggle: () -> Un
         )
         val tileY = if (chip) 67f else 60f
         Box(Modifier.centerAt(190 - 56, tileY).size(70.mp).clip(CircleShape).background(tone.tile)) {
-            Icon(kind.icon, null, tint = tone.icon, modifier = Modifier.align(Alignment.Center).size(38.mp))
+            Icon(kind.icon, null, tint = tone.icon, modifier = Modifier.align(Alignment.Center).size(46.mp))
         }
         Text(
             task.title,

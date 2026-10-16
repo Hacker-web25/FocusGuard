@@ -197,7 +197,7 @@ private fun DrawScope.drawRock(ox: Int, oy: Int) {
         val (xl, yl) = outline.last(); lineTo(pt(xl, yl).x, pt(xl, yl).y)
         close()
     }
-    drawPath(body, Brush.verticalGradient(listOf(Color(0xFFB9A6D8), Color(0xFF8E85B2), Color(0xFF6E6A96)), startY = pt(0f, 358f).y, endY = pt(0f, 396f).y))
+    drawPath(body, Brush.verticalGradient(listOf(Color(0xFFA493C4), Color(0xFF7A7499), Color(0xFF5A5878)), startY = pt(0f, 358f).y, endY = pt(0f, 396f).y))
     // Warm light on the top surface
     drawPath(
         Path().apply {
@@ -216,8 +216,8 @@ private fun DrawScope.drawRock(ox: Int, oy: Int) {
     // Moss cushions with a few blades of grass
     for ((cx, w) in listOf(624f to 56f, 868f to 64f)) {
         drawOval(
-            Brush.verticalGradient(listOf(Color(0xFF9BCBA9), Color(0xFF5F927F)), startY = pt(0f, 352f).y, endY = pt(0f, 366f).y),
-            topLeft = pt(cx - w / 2, 353f), size = Size(mpx(w), mpx(13f))
+            Brush.verticalGradient(listOf(Color(0xFF8DBB9C), Color(0xFF557F72)), startY = pt(0f, 354f).y, endY = pt(0f, 366f).y),
+            topLeft = pt(cx - w / 2, 355f), size = Size(mpx(w), mpx(10f))
         )
         for (k in 0 until 5) {
             val bx = cx - w * 0.35f + k * w * 0.17f
