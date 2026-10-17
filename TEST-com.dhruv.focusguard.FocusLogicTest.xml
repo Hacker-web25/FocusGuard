@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.dhruv.focusguard.FocusLogicTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-17T12:24:47" hostname="runnervm8k3b6" time="0.081">
+  <properties/>
+  <testcase name="kindsFromTitles" classname="com.dhruv.focusguard.FocusLogicTest" time="0.069"/>
+  <testcase name="targetIsClamped" classname="com.dhruv.focusguard.FocusLogicTest" time="0.002"/>
+  <testcase name="timerCountsPausesAndFinishes" classname="com.dhruv.focusguard.FocusLogicTest" time="0.001"/>
+  <testcase name="clockFormats" classname="com.dhruv.focusguard.FocusLogicTest" time="0.001"/>
+  <testcase name="stopwatchKeepsGoingPastItsGoal" classname="com.dhruv.focusguard.FocusLogicTest" time="0.0"/>
+  <testcase name="dayListIncludesOverdueAndUndatedOnlyToday" classname="com.dhruv.focusguard.FocusLogicTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

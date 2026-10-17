@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.dhruv.focusguard.ScreenshotTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-17T12:24:48" hostname="runnervm8k3b6" time="14.921">
+  <properties/>
+  <testcase name="todo_mock" classname="com.dhruv.focusguard.ScreenshotTest" time="9.645"/>
+  <testcase name="focus_mock" classname="com.dhruv.focusguard.ScreenshotTest" time="0.903"/>
+  <testcase name="todo_many_phone" classname="com.dhruv.focusguard.ScreenshotTest" time="0.648"/>
+  <testcase name="todo_empty_phone" classname="com.dhruv.focusguard.ScreenshotTest" time="0.494"/>
+  <testcase name="stopwatch_paused_phone" classname="com.dhruv.focusguard.ScreenshotTest" time="0.514"/>
+  <testcase name="todo_phone" classname="com.dhruv.focusguard.ScreenshotTest" time="0.495"/>
+  <testcase name="todo_done_phone" classname="com.dhruv.focusguard.ScreenshotTest" time="0.535"/>
+  <testcase name="focus_idle_phone" classname="com.dhruv.focusguard.ScreenshotTest" time="0.477"/>
+  <testcase name="focus_phone" classname="com.dhruv.focusguard.ScreenshotTest" time="0.663"/>
+  <testcase name="focus_finished_phone" classname="com.dhruv.focusguard.ScreenshotTest" time="0.546"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
