@@ -75,6 +75,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -198,9 +199,9 @@ fun FocusContent(
     var dialling by remember { mutableStateOf(false) }
     var lastSecond by remember { mutableIntStateOf(-1) }
 
-    val live by rememberUpdatedState(session)
-    val dayNow by rememberUpdatedState(dayProgress)
-    val refNow by rememberUpdatedState(reference)
+    val live = rememberUpdatedState(session)
+    val dayNow = rememberUpdatedState(dayProgress)
+    val refNow = rememberUpdatedState(reference)
 
     LaunchedEffect(Unit) {
         var last = 0L
@@ -538,7 +539,7 @@ private fun TimerRing(
                     awaitEachGesture {
                         val down = awaitFirstDown()
                         val c = Offset(size.width / 2f, size.height / 2f)
-                        val rr = (down.position - c).getDistance() / (size.minDimension / 2f)
+                        val rr = (down.position - c).getDistance() / (minOf(size.width, size.height) / 2f)
                         if (rr < 0.60f) return@awaitEachGesture      // the middle is for tapping
                         fun angle(pos: Offset): Float {
                             val d = pos - c
@@ -660,8 +661,10 @@ private fun TimerRing(
             Spacer(Modifier.height(2.dp))
             Text(
                 timeText,
-                fontFamily = GSans, fontWeight = FontWeight.SemiBold, fontSize = 40.sp, color = Sky.TimerInk,
-                fontFeatureSettings = "tnum"
+                style = TextStyle(
+                    fontFamily = GSans, fontWeight = FontWeight.SemiBold, fontSize = 40.sp,
+                    color = Sky.TimerInk, fontFeatureSettings = "tnum"
+                )
             )
             Spacer(Modifier.height(4.dp))
             val (line1, line2) = when (phase) {

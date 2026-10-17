@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -383,6 +384,7 @@ private fun EmptyDay(onAdd: () -> Unit, modifier: Modifier) {
  * and a line under it, then how long is left. Tap to focus on it, long-press
  * to edit.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TaskRow(task: Task, now: Long, haptics: Haptics?, onToggle: () -> Unit, onOpen: () -> Unit, onEdit: () -> Unit) {
     val kind = kindOf(task)
