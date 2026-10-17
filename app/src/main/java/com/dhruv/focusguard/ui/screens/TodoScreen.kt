@@ -34,7 +34,6 @@ import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.WarningAmber
@@ -429,15 +428,15 @@ private fun TaskRow(task: Task, now: Long, haptics: Haptics?, onToggle: () -> Un
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 8.dp),
+                .padding(start = 8.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CheckCircle(done = task.isCompleted, onToggle = { haptics?.click(); onToggle() })
-            Spacer(Modifier.width(8.dp))
-            Box(Modifier.size(34.dp).clip(CircleShape).background(tone.tile), contentAlignment = Alignment.Center) {
-                Icon(kind.icon, null, tint = tone.icon, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(4.dp))
+            Box(Modifier.size(32.dp).clip(CircleShape).background(tone.tile), contentAlignment = Alignment.Center) {
+                Icon(kind.icon, null, tint = tone.icon, modifier = Modifier.size(19.dp))
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(9.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     task.title,
@@ -459,18 +458,21 @@ private fun TaskRow(task: Task, now: Long, haptics: Haptics?, onToggle: () -> Un
                     )
                 }
             }
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
             Column(horizontalAlignment = Alignment.End) {
                 DueChip(task, now, due, tone.chip, tone.dateInk)
                 if (task.durationMinutes > 0) {
                     Spacer(Modifier.height(3.dp))
-                    Text(
-                        durationText(task.durationMinutes),
-                        fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 11.sp, color = tone.durationInk.copy(alpha = 0.85f)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Timer, null, tint = tone.durationInk.copy(alpha = 0.75f), modifier = Modifier.size(11.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text(
+                            durationText(task.durationMinutes),
+                            fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 11.sp, color = tone.durationInk.copy(alpha = 0.85f)
+                        )
+                    }
                 }
             }
-            Icon(Icons.Rounded.ChevronRight, null, tint = Sky.Chevron, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -488,15 +490,15 @@ private fun DueChip(task: Task, now: Long, due: Due, toneBg: Color, toneInk: Col
     }
     Row(
         Modifier
-            .height(22.dp)
+            .height(21.dp)
             .clip(RoundedCornerShape(50))
             .background(bg)
-            .padding(horizontal = 9.dp),
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             if (task.isCompleted) "Done" else dueText(task, now),
-            fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 11.sp, color = ink, maxLines = 1
+            fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 10.5.sp, color = ink, maxLines = 1, softWrap = false
         )
     }
 }
@@ -514,7 +516,7 @@ private fun CheckCircle(done: Boolean, onToggle: () -> Unit) {
     }
     Canvas(
         Modifier
-            .size(38.dp)
+            .size(34.dp)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Checkbox, onClick = onToggle)
     ) {
         val c = center

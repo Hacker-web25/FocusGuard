@@ -90,13 +90,13 @@ private class Shout(val text: String, val x: Float, val y: Float, val born: Floa
 
 /** The line-up: seven fans and the big one in the middle. */
 private fun lineUp(): List<Member> = listOf(
-    Member(0.085f, 0.74f, 0.052f, 1.06f, seed = 1),
-    Member(0.185f, 0.70f, 0.068f, 1.04f, seed = 2),
-    Member(0.300f, 0.715f, 0.062f, 1.08f, seed = 3),
-    Member(0.700f, 0.715f, 0.064f, 1.05f, seed = 4),
-    Member(0.815f, 0.70f, 0.058f, 1.07f, seed = 5),
-    Member(0.915f, 0.745f, 0.050f, 1.05f, seed = 6),
-    Member(0.500f, 0.615f, 0.108f, 1.03f, main = true, seed = 0)
+    Member(0.085f, 0.70f, 0.052f, 1.06f, seed = 1),
+    Member(0.185f, 0.66f, 0.068f, 1.04f, seed = 2),
+    Member(0.300f, 0.675f, 0.062f, 1.08f, seed = 3),
+    Member(0.700f, 0.675f, 0.064f, 1.05f, seed = 4),
+    Member(0.815f, 0.66f, 0.058f, 1.07f, seed = 5),
+    Member(0.915f, 0.705f, 0.050f, 1.05f, seed = 6),
+    Member(0.500f, 0.575f, 0.108f, 1.03f, main = true, seed = 0)
 )
 
 /** Who joins the cheering first as progress builds. */
@@ -172,8 +172,10 @@ fun AudienceStage(
     }
 
     fun shout(m: Member, words: List<String>) {
-        if (shouts.size > 3) return
-        shouts += Shout(words[Random.nextInt(words.size)], m.fx, m.fy - m.fr * 1.45f, state.time, (Random.nextFloat() - 0.5f) * 16f)
+        if (shouts.size > 2) return
+        // Above the head, nudged away from the edges and from the note on the right.
+        val x = if (m.main) 0.26f else m.fx.coerceIn(0.14f, 0.62f)
+        shouts += Shout(words[Random.nextInt(words.size)], x, m.fy - m.fr * 2.1f, state.time, (Random.nextFloat() - 0.5f) * 14f)
     }
 
     fun doWave(power: Float) {
@@ -422,7 +424,7 @@ fun AudienceStage(
             val age = (t - sh.born) / 1.8f
             val a = (1f - age * age).coerceIn(0f, 1f)
             val pos = px(sh.x, sh.y - age * 0.16f)
-            val style = TextStyle(fontFamily = HandFont, fontSize = (w * 0.044f).toSp(), color = Sky.Hand.copy(alpha = a))
+            val style = TextStyle(fontFamily = HandFont, fontSize = (w * 0.040f).toSp(), color = Sky.Hand.copy(alpha = a))
             val laid: TextLayoutResult = measurer.measure(sh.text, style)
             rotate(sh.tilt, pivot = pos) {
                 drawText(laid, topLeft = Offset(pos.x - laid.size.width / 2f, pos.y - laid.size.height))
@@ -456,7 +458,7 @@ private fun faceFor(m: Member, index: Int, phase: StagePhase, cheer: Int): Face 
 
 /** The misty ledge the crowd stands on: a soft band of light. */
 private fun DrawScope.drawGround(w: Float, h: Float) {
-    val c = Offset(w * 0.5f, h * 0.845f)
+    val c = Offset(w * 0.5f, h * 0.805f)
     scale(1f, 0.1f, pivot = c) {
         drawCircle(
             Brush.radialGradient(
@@ -470,14 +472,14 @@ private fun DrawScope.drawGround(w: Float, h: Float) {
 
 /** "Almost there!" with its curling arrow and a beating heart. */
 private fun DrawScope.drawCallout(measurer: TextMeasurer, text: String, w: Float, h: Float, t: Float) {
-    val anchor = Offset(w * 0.80f, h * 0.17f)
-    val style = TextStyle(fontFamily = HandFont, fontSize = (w * 0.050f).toSp(), color = Sky.Hand)
+    val anchor = Offset(w * 0.785f, h * 0.135f)
+    val style = TextStyle(fontFamily = HandFont, fontSize = (w * 0.047f).toSp(), color = Sky.Hand)
     val laid = measurer.measure(text, style)
     rotate(-12f, pivot = anchor) {
         drawText(laid, topLeft = Offset(anchor.x - laid.size.width / 2f, anchor.y - laid.size.height / 2f))
     }
-    val from = Offset(anchor.x - w * 0.085f, anchor.y + h * 0.14f)
-    val to = Offset(anchor.x - w * 0.20f, anchor.y + h * 0.40f)
+    val from = Offset(anchor.x - w * 0.075f, anchor.y + h * 0.17f)
+    val to = Offset(anchor.x - w * 0.175f, anchor.y + h * 0.46f)
     val arrow = Path().apply {
         moveTo(from.x, from.y)
         cubicTo(from.x + w * 0.01f, from.y + h * 0.14f, to.x + w * 0.03f, to.y - h * 0.10f, to.x, to.y)
@@ -486,5 +488,5 @@ private fun DrawScope.drawCallout(measurer: TextMeasurer, text: String, w: Float
     drawLine(Sky.Hand.copy(alpha = 0.85f), to, Offset(to.x + w * 0.004f, to.y - h * 0.075f), strokeWidth = w * 0.007f, cap = StrokeCap.Round)
     drawLine(Sky.Hand.copy(alpha = 0.85f), to, Offset(to.x + w * 0.052f, to.y - h * 0.012f), strokeWidth = w * 0.007f, cap = StrokeCap.Round)
     val beat = 1f + 0.10f * sin(t * 4f).coerceAtLeast(0f)
-    heartShape(Offset(anchor.x + w * 0.015f, anchor.y + h * 0.145f), w * 0.022f * beat, Sky.Hand.copy(alpha = 0.9f))
+    heartShape(Offset(anchor.x + w * 0.020f, anchor.y + h * 0.175f), w * 0.021f * beat, Sky.Hand.copy(alpha = 0.9f))
 }

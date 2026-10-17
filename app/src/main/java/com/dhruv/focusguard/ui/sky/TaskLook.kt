@@ -96,17 +96,17 @@ fun dueOf(task: Task, now: Long): Due {
     }
 }
 
-/** How long is left, in the words you'd use out loud. */
+/** How long is left, short enough to sit beside a task title. */
 fun dueText(task: Task, now: Long): String {
     val dl = task.deadline ?: return "No date"
     return when (val d = daysUntil(dl, now)) {
         0 -> "Today"
         1 -> "Tomorrow"
-        -1 -> "1 day late"
-        in Int.MIN_VALUE..-2 -> "${-d} days late"
-        in 2..6 -> "$d days left"
-        7 -> "1 week left"
-        in 8..30 -> "${d / 7} weeks left"
+        -1 -> "1d late"
+        in Int.MIN_VALUE..-2 -> "${-d}d late"
+        in 2..6 -> "$d days"
+        in 7..13 -> "1 week"
+        in 14..30 -> "${d / 7} weeks"
         else -> longDate(dl)
     }
 }
