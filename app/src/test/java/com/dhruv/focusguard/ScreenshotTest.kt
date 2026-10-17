@@ -38,17 +38,17 @@ class ScreenshotTest {
 
     private val tasks = listOf(
         Task(id = 1, title = "Complete DSA practice set", priority = Priority.HIGH, deadline = now + 3_600_000, durationMinutes = 90),
-        Task(id = 2, title = "Wake up before 7:30 AM", priority = Priority.MEDIUM, deadline = now + 2 * 86_400_000L, durationMinutes = 30),
-        Task(id = 3, title = "Finish system modeling notes", priority = Priority.MEDIUM, deadline = now + 2 * 86_400_000L, durationMinutes = 75),
-        Task(id = 4, title = "Drink 2.5L water", priority = Priority.LOW, deadline = now + 2 * 86_400_000L, durationMinutes = 10),
-        Task(id = 5, title = "Read 10 pages of a book", priority = Priority.LOW, deadline = now + 2 * 86_400_000L, durationMinutes = 20)
+        Task(id = 2, title = "Wake up before 7:30 AM", priority = Priority.MEDIUM, deadline = now + 86_400_000L, durationMinutes = 30),
+        Task(id = 3, title = "Finish system modeling notes", priority = Priority.MEDIUM, deadline = now + 3 * 86_400_000L, durationMinutes = 75),
+        Task(id = 4, title = "Drink 2.5L water", priority = Priority.LOW, deadline = now - 86_400_000L, durationMinutes = 10),
+        Task(id = 5, title = "Read 10 pages of a book", priority = Priority.LOW, durationMinutes = 20)
     )
 
     @Composable
-    private fun Todo(reference: Boolean = true) {
+    private fun Todo(reference: Boolean = true, list: List<Task> = tasks, guardDown: Boolean = false) {
         TodoContent(
-            name = "Aryan", now = now, day = now, tasks = tasks, mood = 0.4f, celebrate = 0,
-            protectionDown = false, onFixProtection = {}, onPickDay = {}, onToggle = {}, onOpen = {}, onEdit = {},
+            name = "Aryan", now = now, tasks = list, mood = 0.4f, celebrate = 0,
+            protectionDown = guardDown, onFixProtection = {}, onToggle = {}, onOpen = {}, onEdit = {},
             onTimer = {}, onStopwatch = {}, onAdd = {}, onGoals = {}, onSettings = {}, reference = reference
         )
     }
@@ -102,20 +102,21 @@ class ScreenshotTest {
     @Config(qualifiers = "w393dp-h873dp-440dpi")
     fun todo_done_phone() = captureRoboImage("build/screens/todo_done_phone.png") {
         val done = tasks.mapIndexed { i, t -> if (i == 1 || i == 3) t.copy(isCompleted = true, completedAt = now) else t }
-        TodoContent(
-            name = "Aryan", now = now, day = now, tasks = done.sortedBy { it.isCompleted }, mood = 0.4f, celebrate = 0,
-            protectionDown = true, onFixProtection = {}, onPickDay = {}, onToggle = {}, onOpen = {}, onEdit = {},
-            onTimer = {}, onStopwatch = {}, onAdd = {}, onGoals = {}, onSettings = {}
-        )
+        Todo(reference = false, list = done.sortedBy { it.isCompleted }, guardDown = true)
     }
 
     @Test
     @Config(qualifiers = "w393dp-h873dp-440dpi")
     fun todo_empty_phone() = captureRoboImage("build/screens/todo_empty_phone.png") {
-        TodoContent(
-            name = "Aryan", now = now, day = now, tasks = emptyList(), mood = 0f, celebrate = 0,
-            protectionDown = false, onFixProtection = {}, onPickDay = {}, onToggle = {}, onOpen = {}, onEdit = {},
-            onTimer = {}, onStopwatch = {}, onAdd = {}, onGoals = {}, onSettings = {}
-        )
+        Todo(reference = false, list = emptyList())
+    }
+
+    @Test
+    @Config(qualifiers = "w393dp-h873dp-440dpi")
+    fun todo_many_phone() = captureRoboImage("build/screens/todo_many_phone.png") {
+        val more = tasks + List(5) { i ->
+            Task(id = 10L + i, title = "Extra task ${i + 1}", deadline = now + (i + 3) * 86_400_000L, durationMinutes = 15)
+        }
+        Todo(reference = false, list = more)
     }
 }

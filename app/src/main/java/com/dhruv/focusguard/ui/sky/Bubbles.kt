@@ -10,7 +10,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.lerp
@@ -79,7 +78,8 @@ fun DrawScope.drawJelly(
     warmth: Float = 0f,
     time: Float = 0f,
     brightness: Float = 0f,
-    feet: Boolean = true
+    feet: Boolean = true,
+    twinkles: Int = 0
 ) {
     val cy = c.y + pose.lift * ry
     val center = Offset(c.x, cy)
@@ -107,7 +107,9 @@ fun DrawScope.drawJelly(
     rotate(pose.tilt, pivot = Offset(body.x, body.y + by)) {
         if (sprouts != Sprouts.None) drawSprouts(body, bx, by, sprouts, pose.leafSway, time)
 
-        // Body: translucent, periwinkle up top melting into pink below
+        // Body: translucent, periwinkle up top melting into pink below.
+        // Every layer is drawn as an oval, so each one clips itself — no clip
+        // path per character, which is what made a crowd of them expensive.
         val oval = Rect(body.x - bx, body.y - by, body.x + bx, body.y + by)
         val warm = warmth.coerceIn(0f, 1f)
         drawOval(
@@ -117,82 +119,40 @@ fun DrawScope.drawJelly(
             ),
             topLeft = oval.topLeft, size = oval.size, alpha = 0.90f
         )
-        val shape = Path().apply { addOval(oval) }
-        clipPath(shape) {
-            // Blue core behind the face
-            drawOval(
-                Brush.radialGradient(
-                    listOf(Color(0xFF8AACFB).copy(alpha = 0.70f), Color.Transparent),
-                    center = Offset(body.x - bx * 0.05f, body.y - by * 0.15f), radius = bx * 0.70f
-                ),
-                topLeft = oval.topLeft, size = oval.size
-            )
-            // Pink pooling low on both sides
-            drawOval(
-                Brush.radialGradient(
-                    listOf(Color(0xFFF2B4E6).copy(alpha = 0.85f), Color.Transparent),
-                    center = Offset(body.x - bx * 0.45f, body.y + by * 0.62f), radius = bx * 0.70f
-                ),
-                topLeft = oval.topLeft, size = oval.size
-            )
-            drawOval(
-                Brush.radialGradient(
-                    listOf(Color(0xFFF7C4EC).copy(alpha = 0.80f), Color.Transparent),
-                    center = Offset(body.x + bx * 0.55f, body.y + by * 0.35f), radius = bx * 0.65f
-                ),
-                topLeft = oval.topLeft, size = oval.size
-            )
-            // Light from inside, brighter as the character gets happier
-            drawOval(
-                Brush.radialGradient(
-                    listOf(Color.White.copy(alpha = 0.16f + 0.22f * brightness + 0.3f * pose.glow), Color.Transparent),
-                    center = Offset(body.x, body.y + by * 0.50f), radius = bx * 0.80f
-                ),
-                topLeft = oval.topLeft, size = oval.size
-            )
-            // Iridescent film drifting round
-            rotate(time * 18f, pivot = body) {
-                drawOval(
-                    Brush.sweepGradient(
-                        listOf(
-                            Color(0x30FFB8E6), Color(0x229FC1FE), Color(0x22B6F0E0),
-                            Color(0x22CBB8FF), Color(0x30FFB8E6)
-                        ),
-                        center = body
-                    ),
-                    topLeft = oval.topLeft, size = oval.size
-                )
-            }
-            // Fresnel: glass glows brightest at its edge
-            scale(1f, by / bx, pivot = body) {
-                drawCircle(
-                    Brush.radialGradient(
-                        0f to Color.Transparent,
-                        0.80f to Color.Transparent,
-                        0.93f to Color(0xFFFFEEFC).copy(alpha = 0.55f),
-                        1f to Color.White.copy(alpha = 0.95f),
-                        center = body, radius = bx
-                    ),
-                    radius = bx, center = body
-                )
-            }
-            // Soft white sheen across the upper left
-            drawArc(
-                Color.White.copy(alpha = 0.32f),
-                startAngle = 165f, sweepAngle = 95f, useCenter = false,
-                topLeft = Offset(oval.left + bx * 0.16f, oval.top + by * 0.16f),
-                size = Size(bx * 1.68f, by * 1.68f),
-                style = Stroke(width = bx * 0.10f, cap = StrokeCap.Round)
-            )
-            // Twinkles
-            for (i in 0 until 10) {
-                val a = i * 2.39996f
-                val rr = 0.25f + 0.6f * ((i * 0.37f) % 1f)
-                val p = Offset(body.x + cos(a) * bx * rr, body.y + sin(a) * by * rr * 0.9f)
-                val tw = 0.5f + 0.5f * sin(time * 2.2f + i * 1.7f)
-                drawCircle(Color.White.copy(alpha = 0.35f + 0.55f * tw), radius = bx * (0.010f + 0.008f * (i % 3)), center = p)
-            }
-        }
+        // Blue core behind the face
+        drawOval(
+            Brush.radialGradient(
+                listOf(Color(0xFF8AACFB).copy(alpha = 0.70f), Color.Transparent),
+                center = Offset(body.x - bx * 0.05f, body.y - by * 0.15f), radius = bx * 0.70f
+            ),
+            topLeft = oval.topLeft, size = oval.size
+        )
+        // Pink pooling low, and the inner light (brighter when happy)
+        drawOval(
+            Brush.radialGradient(
+                listOf(Color(0xFFF2B4E6).copy(alpha = 0.85f), Color.Transparent),
+                center = Offset(body.x - bx * 0.40f, body.y + by * 0.60f), radius = bx * 0.80f
+            ),
+            topLeft = oval.topLeft, size = oval.size
+        )
+        drawOval(
+            Brush.radialGradient(
+                listOf(Color.White.copy(alpha = 0.18f + 0.26f * brightness + 0.32f * pose.glow), Color.Transparent),
+                center = Offset(body.x, body.y + by * 0.50f), radius = bx * 0.80f
+            ),
+            topLeft = oval.topLeft, size = oval.size
+        )
+        // Fresnel: glass glows brightest at its edge
+        drawOval(
+            Brush.radialGradient(
+                0f to Color.Transparent,
+                0.80f to Color.Transparent,
+                0.93f to Color(0xFFFFEEFC).copy(alpha = 0.55f),
+                1f to Color.White.copy(alpha = 0.95f),
+                center = body, radius = bx
+            ),
+            topLeft = oval.topLeft, size = oval.size
+        )
         // Crisp rim
         drawOval(Color.White.copy(alpha = 0.85f), topLeft = oval.topLeft, size = oval.size, style = Stroke(width = bx * 0.022f))
         // Specular highlights
@@ -204,6 +164,16 @@ fun DrawScope.drawJelly(
             )
         }
         drawCircle(Color.White.copy(alpha = 0.95f), radius = bx * 0.03f, center = Offset(body.x + bx * 0.52f, body.y - by * 0.52f))
+        // Twinkles inside (only where they stay within the body)
+        if (twinkles > 0) {
+            for (i in 0 until twinkles) {
+                val a = i * 2.39996f + time * 0.35f
+                val rr = 0.25f + 0.5f * ((i * 0.37f) % 1f)
+                val p = Offset(body.x + cos(a) * bx * rr, body.y + sin(a) * by * rr * 0.9f)
+                val tw = 0.5f + 0.5f * sin(time * 2.2f + i * 1.7f)
+                drawCircle(Color.White.copy(alpha = 0.30f + 0.55f * tw), radius = bx * (0.012f + 0.008f * (i % 3)), center = p)
+            }
+        }
 
         // Feet, in front of the body: little glossy blobs
         if (feet) {
@@ -218,7 +188,6 @@ fun DrawScope.drawJelly(
                     ),
                     topLeft = Offset(fc.x - fw / 2, fc.y - fh / 2), size = Size(fw, fh), alpha = 0.95f
                 )
-                drawOval(Color.White.copy(alpha = 0.9f), topLeft = Offset(fc.x - fw / 2, fc.y - fh / 2), size = Size(fw, fh), style = Stroke(width = bx * 0.012f))
                 drawOval(
                     Color.White.copy(alpha = 0.85f),
                     topLeft = Offset(fc.x - fw * 0.28f, fc.y - fh * 0.32f), size = Size(fw * 0.30f, fh * 0.26f)
@@ -371,9 +340,13 @@ private fun DrawScope.drawFace(body: Offset, bx: Float, by: Float, face: Face, p
                 close()
             }
             drawPath(p, Sky.Mouth)
-            clipPath(p) {
-                drawOval(Sky.Tongue, topLeft = Offset(m.x - w * 0.62f, m.y + h * 0.40f), size = Size(w * 1.24f, h * 0.9f))
+            // Tongue: an arc that follows the lower lip, so it needs no clip.
+            val tongue = Path().apply {
+                moveTo(m.x - w * 0.60f, m.y + h * 0.45f)
+                cubicTo(m.x - w * 0.55f, m.y + h * 1.00f, m.x + w * 0.55f, m.y + h * 1.00f, m.x + w * 0.60f, m.y + h * 0.45f)
+                close()
             }
+            drawPath(tongue, Sky.Tongue)
         }
         Mouth.Oh -> {
             drawOval(Sky.Mouth, topLeft = Offset(m.x - ms * 0.04f, m.y - ms * 0.02f), size = Size(ms * 0.08f, ms * 0.09f))

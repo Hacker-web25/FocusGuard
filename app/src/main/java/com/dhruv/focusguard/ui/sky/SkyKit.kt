@@ -44,7 +44,6 @@ import com.dhruv.focusguard.guard.overlay.Backdrop
 import com.dhruv.focusguard.guard.overlay.LocalBackdrop
 import com.dhruv.focusguard.guard.overlay.LocalRaster
 import com.dhruv.focusguard.guard.overlay.LocalScreenSize
-import com.dhruv.focusguard.guard.overlay.ScaledToWidth
 import com.dhruv.focusguard.guard.overlay.rememberBackdropRaster
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -65,6 +64,20 @@ val Number.mp: Dp get() = (toFloat() * MP).dp
 
 /** Mockup pixels → sp (font sizes measured off the mockups). */
 val Number.ms: TextUnit get() = (toFloat() * MP).sp
+
+/** Layouts are in real dp; only the font scale is capped so huge system text can't break them. */
+@Composable
+private fun CapFontScale(content: @Composable () -> Unit) {
+    val d = LocalDensity.current
+    if (d.fontScale <= 1.15f) {
+        content()
+    } else {
+        CompositionLocalProvider(
+            LocalDensity provides Density(d.density, 1.15f),
+            content = content
+        )
+    }
+}
 
 /** Screenshot tests turn the endless animations off so a frame can be captured. */
 object SkyMotion {
@@ -276,7 +289,7 @@ fun SkyScaffold(
         if (value == null) value = withContext(Dispatchers.IO) { SkyImages.get(context, res) }
     }
     LightStatusBarIcons()
-    ScaledToWidth {
+    CapFontScale {
         BoxWithConstraints(modifier.fillMaxSize()) {
             val density = LocalDensity.current
             val screen = with(density) { Size(maxWidth.toPx(), maxHeight.toPx()) }

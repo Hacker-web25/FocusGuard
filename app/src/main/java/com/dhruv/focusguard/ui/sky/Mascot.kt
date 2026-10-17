@@ -1,16 +1,14 @@
 package com.dhruv.focusguard.ui.sky
 
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -19,27 +17,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import com.dhruv.focusguard.guard.Haptics
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
-// The mascot's box on the To-do screen, in mockup pixels.
-const val MASCOT_X = 560
-const val MASCOT_Y = 80
-const val MASCOT_W = 370
-const val MASCOT_H = 316
-
 /**
- * The bubble on the rock at the top of the To-do screen.
+ * The bubble on the rock at the top of the To-do screen. Everything is drawn
+ * as a fraction of the box it is given, so it fits any phone.
  *
- * [mood] is how much of today's list is done (0..1): it looks up curious at
- * an empty day, smiles as you go, and beams with sparkles when it's all done.
- * Bump [celebrate] when a task is ticked off and it hops and throws hearts.
- * Tap it for a giggle; rub it and it glows.
+ * [mood] is how much of the list is done (0..1): it looks up, curious, at an
+ * untouched list, smiles as you go and beams when it is all done. Bump
+ * [celebrate] when a task is ticked and it hops and throws hearts. Tap it for
+ * a giggle, rub it and it glows.
  */
 @Composable
 fun Mascot(
@@ -51,33 +44,26 @@ fun Mascot(
 ) {
     val pose = remember { BubblePose() }
     val frame = remember { mutableLongStateOf(0L) }
-    var time by remember { mutableStateOf(0f) }
-    val hearts = remember { ArrayList<FloatArray>() } // x, y, vx, vy, born
-    var lift by remember { mutableStateOf(0f) }
-    var liftV by remember { mutableStateOf(0f) }
-    var sq by remember { mutableStateOf(0f) }
-    var sqV by remember { mutableStateOf(0f) }
-    var reactUntil by remember { mutableStateOf(-1f) }
-    var glow by remember { mutableStateOf(0f) }
-    var nextBlink by remember { mutableStateOf(1.5f) }
-    var blinkAt by remember { mutableStateOf(-10f) }
+    val s = remember { MascotState() }
+    val hearts = remember { ArrayList<FloatArray>() }   // x, y, vx, vy, born
 
-    // Body in mockup px (from the mockup)
-    val cx = 756f; val cy = 273f; val rx = 101f; val ry = 88f
+    // Body, as fractions of the box
+    val cx = 0.50f; val cy = 0.455f; val r = 0.285f
 
     fun burst(n: Int) {
         repeat(n) { i ->
             val a = (-90f + (i - n / 2f) * 22f) * (Math.PI / 180f).toFloat()
-            hearts += floatArrayOf(cx, cy - ry * 0.8f, cos(a) * 80f, sin(a) * 110f - 20f, time)
+            hearts += floatArrayOf(cx, cy - r * 0.8f, cos(a) * 0.22f, sin(a) * 0.30f - 0.05f, s.time)
         }
     }
 
     LaunchedEffect(celebrate) {
         if (celebrate > 0) {
-            liftV = -2.6f; sqV = -4f
-            reactUntil = time + 1.6f
-            glow = 1f
+            s.liftV = -2.6f; s.sqV = -4f
+            s.reactUntil = s.time + 1.6f
+            s.glow = 1f
             burst(7)
+            haptics?.tick()
         }
     }
 
@@ -88,13 +74,13 @@ fun Mascot(
             withInfiniteAnimationFrameNanos { now ->
                 val dt = if (last == 0L) 0.016f else ((now - last) / 1e9f).coerceIn(0f, 0.05f)
                 last = now
-                time += dt
-                liftV += (-lift * 140f - liftV * 8f) * dt; lift += liftV * dt
-                sqV += (-sq * 240f - sqV * 10f) * dt; sq += sqV * dt
-                glow = (glow - dt * 0.5f).coerceAtLeast(0f)
-                if (time > nextBlink) { blinkAt = time; nextBlink = time + 2.5f + Random.nextFloat() * 3f }
-                hearts.removeAll { time - it[4] > 1.4f }
-                for (h in hearts) { h[0] += h[2] * dt; h[1] += h[3] * dt; h[3] += 50f * dt }
+                s.time += dt
+                s.liftV += (-s.lift * 140f - s.liftV * 8f) * dt; s.lift += s.liftV * dt
+                s.sqV += (-s.sq * 240f - s.sqV * 10f) * dt; s.sq += s.sqV * dt
+                s.glow = (s.glow - dt * 0.5f).coerceAtLeast(0f)
+                if (s.time > s.nextBlink) { s.blinkAt = s.time; s.nextBlink = s.time + 2.5f + Random.nextFloat() * 3f }
+                hearts.removeAll { s.time - it[4] > 1.4f }
+                for (h in hearts) { h[0] += h[2] * dt; h[1] += h[3] * dt; h[3] += 0.14f * dt }
                 frame.longValue = now
             }
         }
@@ -102,13 +88,13 @@ fun Mascot(
 
     Canvas(
         modifier
-            .size(MASCOT_W.mp, MASCOT_H.mp)
+            .fillMaxSize()
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     haptics?.click()
-                    liftV = -2.2f; sqV = -3f
-                    reactUntil = time + 1.3f
+                    s.liftV = -2.2f; s.sqV = -3f
+                    s.reactUntil = s.time + 1.3f
                     burst(4)
                     var travelled = 0f
                     var last = down.position
@@ -120,7 +106,7 @@ fun Mascot(
                         last = ch.position
                         if (travelled > 40f) {
                             travelled = 0f
-                            glow = (glow + 0.25f).coerceAtMost(1f)
+                            s.glow = (s.glow + 0.25f).coerceAtMost(1f)
                             haptics?.tick()
                         }
                         ch.consume()
@@ -129,104 +115,125 @@ fun Mascot(
             }
     ) {
         frame.longValue
-        val ox = MASCOT_X; val oy = MASCOT_Y
-        fun p(x: Float, y: Float) = Offset(mpx(x - ox), mpx(y - oy))
+        val w = size.width
+        val h = size.height
+        fun px(fx: Float, fy: Float) = Offset(fx * w, fy * h)
+        val rr = r * w
 
-        drawRock(ox, oy)
+        drawRock(w, h)
 
-        // Petals drifting nearby
-        val drift = sin(time * 0.9f)
-        petal(p(612f, 272f + drift * 4f), mpx(17f), -35f + drift * 8f, 0.85f)
-        petal(p(866f, 327f - drift * 3f), mpx(13f), 45f - drift * 10f, 0.8f)
+        val drift = sin(s.time * 0.9f)
+        petal(px(0.10f, 0.44f + drift * 0.012f), w * 0.045f, -35f + drift * 8f, 0.85f)
+        petal(px(0.93f, 0.60f - drift * 0.010f), w * 0.036f, 45f - drift * 10f, 0.8f)
 
         val done = mood.coerceIn(0f, 1f)
         val face = when {
             reference -> Face(Eyes.Happy, Mouth.Smile)
-            time < reactUntil -> Face(Eyes.Happy, Mouth.Laugh)
+            s.time < s.reactUntil -> Face(Eyes.Happy, Mouth.Laugh)
             done >= 1f -> Face(Eyes.Happy, Mouth.Laugh)
             done > 0f -> Face(Eyes.Happy, Mouth.Smile)
             else -> Face(Eyes.Open, Mouth.Smile)
         }
-        val bt = (time - blinkAt) / 0.16f
+        val bt = (s.time - s.blinkAt) / 0.16f
         pose.eyeOpen = if (bt in 0f..1f) abs(bt * 2f - 1f) else 1f
-        pose.lift = lift + sin(time * 1.6f) * 0.02f
-        pose.squashX = 1f + sq * 0.45f
-        pose.squashY = 1f - sq * 0.6f
-        pose.leafSway = sin(time * 1.2f) * 0.6f
-        pose.glow = glow
+        pose.lift = s.lift + sin(s.time * 1.6f) * 0.02f
+        pose.squashX = 1f + s.sq * 0.45f
+        pose.squashY = 1f - s.sq * 0.6f
+        pose.leafSway = sin(s.time * 1.2f) * 0.6f
+        pose.glow = s.glow
         pose.look = Offset(-0.3f, 0.2f)
 
         drawJelly(
-            c = p(cx, cy), rx = mpx(rx), ry = mpx(ry),
+            c = px(cx, cy), rx = rr * 1.06f, ry = rr,
             face = face, pose = pose,
             layout = FaceLayout(eyeDx = 0.31f, eyeDy = -0.07f, eyeSize = 1.08f, mouthDy = 0.16f, mouthSize = 1.32f, blushDx = 0.50f, blushDy = 0.16f),
             sprouts = Sprouts.Stems,
-            warmth = 0f,
-            time = time,
-            brightness = 0.55f + 0.4f * done
+            time = s.time,
+            brightness = 0.55f + 0.4f * done,
+            twinkles = 10
         )
 
         if (done >= 1f) {
             for (i in 0 until 4) {
-                val a = time * 0.8f + i * 1.57f
-                val tw = 0.5f + 0.5f * sin(time * 3f + i)
-                sparkle(p(cx + cos(a) * rx * 1.25f, cy + sin(a) * ry * 1.1f), mpx(9f) * (0.6f + tw * 0.5f), Color(0xFFFFF3C2).copy(alpha = 0.9f))
+                val a = s.time * 0.8f + i * 1.57f
+                val tw = 0.5f + 0.5f * sin(s.time * 3f + i)
+                sparkle(px(cx + cos(a) * r * 1.25f, cy + sin(a) * r * 1.35f), w * 0.030f * (0.6f + tw * 0.5f), Color(0xFFFFF3C2).copy(alpha = 0.9f))
             }
         }
-        for (h in hearts) {
-            val age = (time - h[4]) / 1.4f
-            heartShape(p(h[0], h[1]), mpx(12f) * (0.7f + age * 0.5f), Color(0xFFF07AAE).copy(alpha = (1f - age).coerceIn(0f, 1f)))
+        for (hh in hearts) {
+            val age = (s.time - hh[4]) / 1.4f
+            heartShape(px(hh[0], hh[1]), w * 0.038f * (0.7f + age * 0.5f), Color(0xFFF07AAE).copy(alpha = (1f - age).coerceIn(0f, 1f)))
         }
     }
 }
 
-/** The mossy rock the mascot sits on. */
-private fun DrawScope.drawRock(ox: Int, oy: Int) {
-    fun pt(x: Float, y: Float) = Offset(mpx(x - ox), mpx(y - oy))
+private class MascotState {
+    var time = 0f
+    var lift = 0f; var liftV = 0f
+    var sq = 0f; var sqV = 0f
+    var glow = 0f
+    var reactUntil = -1f
+    var nextBlink = 1.5f
+    var blinkAt = -10f
+}
+
+/** The mossy rock it sits on. */
+private fun DrawScope.drawRock(w: Float, h: Float) {
+    fun px(fx: Float, fy: Float) = Offset(fx * w, fy * h)
+    val top = 0.775f
+    val bottom = 0.90f
     val outline = listOf(
-        585f to 396f, 589f to 380f, 598f to 369f, 616f to 362f, 648f to 360f, 700f to 361f,
-        760f to 359f, 820f to 360f, 858f to 358f, 887f to 362f, 901f to 370f, 908f to 382f, 911f to 396f
+        0.07f to bottom, 0.085f to 0.80f, 0.12f to 0.782f, 0.22f to 0.776f,
+        0.50f to 0.772f, 0.78f to 0.776f, 0.88f to 0.782f, 0.915f to 0.80f, 0.93f to bottom
     )
     val body = Path().apply {
-        val (x0, y0) = outline.first(); moveTo(pt(x0, y0).x, pt(x0, y0).y)
+        val f = outline.first(); moveTo(px(f.first, f.second).x, px(f.first, f.second).y)
         for (i in 1 until outline.size) {
-            val (px, py) = outline[i - 1]; val (x, y) = outline[i]
-            val mid = pt((px + x) / 2f, (py + y) / 2f)
-            quadraticBezierTo(pt(px, py).x, pt(px, py).y, mid.x, mid.y)
+            val p = outline[i - 1]; val c = outline[i]
+            val mid = px((p.first + c.first) / 2f, (p.second + c.second) / 2f)
+            quadraticBezierTo(px(p.first, p.second).x, px(p.first, p.second).y, mid.x, mid.y)
         }
-        val (xl, yl) = outline.last(); lineTo(pt(xl, yl).x, pt(xl, yl).y)
+        val l = outline.last(); lineTo(px(l.first, l.second).x, px(l.first, l.second).y)
         close()
     }
-    drawPath(body, Brush.verticalGradient(listOf(Color(0xFFA493C4), Color(0xFF7A7499), Color(0xFF5A5878)), startY = pt(0f, 358f).y, endY = pt(0f, 396f).y))
-    // Warm light on the top surface
+    drawPath(body, Brush.verticalGradient(listOf(Color(0xFFA493C4), Color(0xFF7A7499), Color(0xFF5A5878)), startY = top * h, endY = bottom * h))
     drawPath(
         Path().apply {
-            moveTo(pt(600f, 368f).x, pt(600f, 368f).y)
-            quadraticBezierTo(pt(616f, 361f).x, pt(616f, 361f).y, pt(650f, 361f).x, pt(650f, 361f).y)
-            lineTo(pt(858f, 359f).x, pt(858f, 359f).y)
-            quadraticBezierTo(pt(888f, 362f).x, pt(888f, 362f).y, pt(899f, 370f).x, pt(899f, 370f).y)
+            moveTo(px(0.10f, 0.795f).x, px(0.10f, 0.795f).y)
+            quadraticBezierTo(px(0.14f, 0.779f).x, px(0.14f, 0.779f).y, px(0.24f, 0.776f).x, px(0.24f, 0.776f).y)
+            lineTo(px(0.78f, 0.776f).x, px(0.78f, 0.776f).y)
+            quadraticBezierTo(px(0.87f, 0.780f).x, px(0.87f, 0.780f).y, px(0.905f, 0.796f).x, px(0.905f, 0.796f).y)
         },
-        Color(0xFFF1D9E6).copy(alpha = 0.9f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = mpx(4f), cap = StrokeCap.Round)
+        Color(0xFFF1D9E6).copy(alpha = 0.9f), style = Stroke(width = w * 0.012f, cap = StrokeCap.Round)
     )
-    // Cracks and texture
     val crack = Color(0xFF5E5A86).copy(alpha = 0.55f)
-    for ((a, b) in listOf((628f to 372f) to (646f to 384f), (700f to 370f) to (716f to 378f), (812f to 371f) to (838f to 382f), (870f to 375f) to (884f to 389f))) {
-        drawLine(crack, pt(a.first, a.second), pt(b.first, b.second), strokeWidth = mpx(2f), cap = StrokeCap.Round)
+    for ((a, b) in listOf(
+        (0.18f to 0.80f) to (0.24f to 0.84f),
+        (0.44f to 0.79f) to (0.49f to 0.82f),
+        (0.72f to 0.80f) to (0.80f to 0.845f)
+    )) {
+        drawLine(crack, px(a.first, a.second), px(b.first, b.second), strokeWidth = w * 0.006f, cap = StrokeCap.Round)
     }
-    // Moss cushions with a few blades of grass
-    for ((cx, w) in listOf(624f to 56f, 868f to 64f)) {
+    // Moss cushions with a few blades
+    for ((mcx, mw) in listOf(0.145f to 0.16f, 0.855f to 0.18f)) {
         drawOval(
-            Brush.verticalGradient(listOf(Color(0xFF7DA592), Color(0xFF4E7266)), startY = pt(0f, 354f).y, endY = pt(0f, 366f).y),
-            topLeft = pt(cx - w / 2, 356f), size = Size(mpx(w), mpx(9f)), alpha = 0.9f
+            Brush.verticalGradient(listOf(Color(0xFF7DA592), Color(0xFF4E7266)), startY = 0.763f * h, endY = 0.790f * h),
+            topLeft = px(mcx - mw / 2, 0.766f), size = Size(mw * w, h * 0.024f), alpha = 0.9f
         )
         for (k in 0 until 5) {
-            val bx = cx - w * 0.35f + k * w * 0.17f
-            val h = 11f + (k % 3) * 6f
-            val lean = if (k % 2 == 0) -3f else 3f
+            val bx = mcx - mw * 0.34f + k * mw * 0.17f
+            val bh = 0.024f + (k % 3) * 0.013f
+            val lean = if (k % 2 == 0) -0.008f else 0.008f
             val blade = Path().apply {
-                moveTo(pt(bx - 2f, 357f).x, pt(bx - 2f, 357f).y)
-                quadraticBezierTo(pt(bx + lean * 0.3f, 357f - h * 0.6f).x, pt(bx + lean * 0.3f, 357f - h * 0.6f).y, pt(bx + lean, 357f - h).x, pt(bx + lean, 357f - h).y)
-                quadraticBezierTo(pt(bx + lean * 0.3f + 1f, 357f - h * 0.5f).x, pt(bx + lean * 0.3f + 1f, 357f - h * 0.5f).y, pt(bx + 2f, 357f).x, pt(bx + 2f, 357f).y)
+                moveTo(px(bx - 0.005f, 0.772f).x, px(bx - 0.005f, 0.772f).y)
+                quadraticBezierTo(
+                    px(bx + lean * 0.3f, 0.772f - bh * 0.6f).x, px(bx + lean * 0.3f, 0.772f - bh * 0.6f).y,
+                    px(bx + lean, 0.772f - bh).x, px(bx + lean, 0.772f - bh).y
+                )
+                quadraticBezierTo(
+                    px(bx + lean * 0.3f + 0.003f, 0.772f - bh * 0.5f).x, px(bx + lean * 0.3f + 0.003f, 0.772f - bh * 0.5f).y,
+                    px(bx + 0.005f, 0.772f).x, px(bx + 0.005f, 0.772f).y
+                )
                 close()
             }
             drawPath(blade, Color(0xFF5E8C7C))

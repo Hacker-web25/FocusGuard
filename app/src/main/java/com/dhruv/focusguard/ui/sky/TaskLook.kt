@@ -78,6 +78,56 @@ fun startOfDay(millis: Long): Long = Calendar.getInstance().apply {
 
 fun sameDay(a: Long, b: Long): Boolean = startOfDay(a) == startOfDay(b)
 
+/** How pressing a task is — decides the colour of its due chip. */
+enum class Due { Overdue, Today, Tomorrow, Soon, Later, None }
+
+/** Days from today to [deadline] (negative = overdue). */
+fun daysUntil(deadline: Long, now: Long): Int =
+    ((startOfDay(deadline) - startOfDay(now)) / (24 * 60 * 60 * 1000L)).toInt()
+
+fun dueOf(task: Task, now: Long): Due {
+    val dl = task.deadline ?: return Due.None
+    return when (val d = daysUntil(dl, now)) {
+        in Int.MIN_VALUE..-1 -> Due.Overdue
+        0 -> Due.Today
+        1 -> Due.Tomorrow
+        in 2..7 -> Due.Soon
+        else -> { @Suppress("UNUSED_EXPRESSION") d; Due.Later }
+    }
+}
+
+/** How long is left, in the words you'd use out loud. */
+fun dueText(task: Task, now: Long): String {
+    val dl = task.deadline ?: return "No date"
+    return when (val d = daysUntil(dl, now)) {
+        0 -> "Today"
+        1 -> "Tomorrow"
+        -1 -> "1 day late"
+        in Int.MIN_VALUE..-2 -> "${-d} days late"
+        in 2..6 -> "$d days left"
+        7 -> "1 week left"
+        in 8..30 -> "${d / 7} weeks left"
+        else -> longDate(dl)
+    }
+}
+
+/**
+ * The whole list, most pressing first: overdue, then due soonest, then
+ * undated, with higher priority first inside each group. Finished tasks go
+ * to the bottom, most recently finished first.
+ */
+fun orderedTasks(active: List<Task>, completed: List<Task>, now: Long): List<Task> {
+    val open = active.sortedWith(
+        compareBy<Task>(
+            { it.deadline?.let { d -> daysUntil(d, now) } ?: Int.MAX_VALUE },
+            { -it.priority.weight },
+            { it.createdAt }
+        )
+    )
+    val done = completed.sortedByDescending { it.completedAt ?: it.createdAt }
+    return open + done
+}
+
 /** "Today", "Tomorrow", "Yesterday" or the date itself. */
 fun dueLabel(deadline: Long, now: Long): String {
     val day = 24 * 60 * 60 * 1000L

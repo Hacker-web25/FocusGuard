@@ -567,16 +567,24 @@ fun Glass(
         val raster = LocalRaster.current
         val frosted = raster?.blurred
         if (frosted != null) {
-            // The blur is already baked into the small bitmap; scaling it back
-            // up is what makes the frost, so there is no blur pass per card.
+            // The blur is baked into a small bitmap of the whole screen. Blit
+            // only the slice behind this card, scaled up: one cheap draw, no
+            // blur pass and no full-screen image per card.
             Canvas(Modifier.matchParentSize()) {
-                translate(-origin.x, -origin.y) {
-                    drawImage(
-                        image = frosted,
-                        dstSize = IntSize(screen.width.toInt(), screen.height.toInt()),
-                        filterQuality = FilterQuality.Medium
-                    )
-                }
+                val kx = frosted.width / screen.width.coerceAtLeast(1f)
+                val ky = frosted.height / screen.height.coerceAtLeast(1f)
+                val sx = (origin.x * kx).toInt().coerceIn(0, (frosted.width - 1).coerceAtLeast(0))
+                val sy = (origin.y * ky).toInt().coerceIn(0, (frosted.height - 1).coerceAtLeast(0))
+                val sw = (size.width * kx).toInt().coerceIn(1, frosted.width - sx)
+                val sh = (size.height * ky).toInt().coerceIn(1, frosted.height - sy)
+                drawImage(
+                    image = frosted,
+                    srcOffset = IntOffset(sx, sy),
+                    srcSize = IntSize(sw, sh),
+                    dstOffset = IntOffset.Zero,
+                    dstSize = IntSize(size.width.toInt().coerceAtLeast(1), size.height.toInt().coerceAtLeast(1)),
+                    filterQuality = FilterQuality.Medium
+                )
             }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // Only until the raster is ready (a frame or two).

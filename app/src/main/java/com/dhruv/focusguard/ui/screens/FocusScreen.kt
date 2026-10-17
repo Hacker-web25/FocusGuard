@@ -2,20 +2,10 @@ package com.dhruv.focusguard.ui.screens
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,18 +25,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
-import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Replay
@@ -59,20 +47,21 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -81,20 +70,20 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dhruv.focusguard.R
 import com.dhruv.focusguard.data.model.Task
 import com.dhruv.focusguard.guard.Haptics
+import com.dhruv.focusguard.guard.overlay.FallingPetals
 import com.dhruv.focusguard.guard.overlay.Glass
-import com.dhruv.focusguard.guard.overlay.gradientTint
 import com.dhruv.focusguard.ui.focus.FocusClock
 import com.dhruv.focusguard.ui.focus.FocusMode
 import com.dhruv.focusguard.ui.focus.FocusPhase
@@ -102,29 +91,21 @@ import com.dhruv.focusguard.ui.focus.FocusSession
 import com.dhruv.focusguard.ui.focus.clockText
 import com.dhruv.focusguard.ui.sky.AudienceStage
 import com.dhruv.focusguard.ui.sky.GSans
-import com.dhruv.focusguard.ui.sky.STAGE_TOP
 import com.dhruv.focusguard.ui.sky.Sky
 import com.dhruv.focusguard.ui.sky.SkyFit
 import com.dhruv.focusguard.ui.sky.SkyMotion
 import com.dhruv.focusguard.ui.sky.SkyScaffold
 import com.dhruv.focusguard.ui.sky.StagePhase
-import com.dhruv.focusguard.ui.sky.TaskKind
-import com.dhruv.focusguard.ui.sky.at
-import com.dhruv.focusguard.ui.sky.baselineAt
 import com.dhruv.focusguard.ui.sky.calloutFor
-import com.dhruv.focusguard.ui.sky.centerAt
 import com.dhruv.focusguard.ui.sky.clockPoint
-import com.dhruv.focusguard.ui.sky.gs
+import com.dhruv.focusguard.ui.sky.durationText
 import com.dhruv.focusguard.ui.sky.isHighPriority
 import com.dhruv.focusguard.ui.sky.kindOf
 import com.dhruv.focusguard.ui.sky.longDate
-import com.dhruv.focusguard.ui.sky.mp
-import com.dhruv.focusguard.ui.sky.mpx
 import com.dhruv.focusguard.ui.sky.sparkle
 import com.dhruv.focusguard.ui.sky.subtitleOf
 import com.dhruv.focusguard.ui.viewmodel.TaskViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -133,6 +114,10 @@ import kotlin.math.sin
 
 // ═════════════════════════════════════════════════════════════════
 //  Focus: one screen for the timer and the stopwatch.
+//
+//  The ring and the crowd repaint every frame, but nothing above
+//  them recomposes: the moving numbers live in plain float state
+//  that only the drawing reads, and the digits change once a second.
 // ═════════════════════════════════════════════════════════════════
 
 @Composable
@@ -146,6 +131,7 @@ fun FocusRoute(
     val context = LocalContext.current
     val active by viewModel.activeTasks.collectAsState()
     val completed by viewModel.completedTasks.collectAsState()
+
     LaunchedEffect(mode, taskId) {
         val t = taskId?.let { viewModel.getTaskById(it) }
         FocusClock.prepare(context, mode, taskId, t?.durationMinutes)
@@ -154,33 +140,32 @@ fun FocusRoute(
     val s = session ?: return
     val task = (active + completed).firstOrNull { it.id == s.taskId }
 
-    val today = remember { System.currentTimeMillis() }
-    val todays = remember(active, completed) {
-        com.dhruv.focusguard.ui.sky.tasksForDay(active, completed, today, today)
+    val now = remember(active, completed) { System.currentTimeMillis() }
+    val dayDone = remember(active, completed) {
+        val all = active.size + completed.count { it.completedAt?.let { c -> c > now - 86_400_000L } == true }
+        if (all == 0) 0f else completed.count { it.completedAt?.let { c -> c > now - 86_400_000L } == true } / all.toFloat()
     }
-    val dayProgress = if (todays.isEmpty()) 0f else todays.count { it.isCompleted } / todays.size.toFloat()
 
     FocusContent(
         session = s,
         task = task,
-        dayProgress = dayProgress,
-        dateMillis = today,
+        dayProgress = dayDone,
+        dateMillis = now,
         pickable = active,
         onBack = onBack,
         onChange = { change -> FocusClock.update(context, change) },
         onOpenTask = { t -> onEditTask(t.id) },
         onPickTask = { t ->
-            FocusClock.update(context) { it.copy(taskId = t.id).let { n -> if (t.durationMinutes > 0 && n.mode == FocusMode.Timer) n.withTarget(t.durationMinutes * 60_000L) else n } }
+            FocusClock.update(context) {
+                it.copy(taskId = t.id).let { n ->
+                    if (t.durationMinutes > 0 && n.mode == FocusMode.Timer) n.withTarget(t.durationMinutes * 60_000L) else n
+                }
+            }
         },
         onMarkDone = { t -> if (!t.isCompleted) viewModel.toggleComplete(t) }
     )
 }
 
-/**
- * The focus screen, laid out from the mockup. Every group keeps its mockup
- * size; on a phone taller than the mockup the gaps between groups grow in
- * proportion, so the composition stays the same.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FocusContent(
@@ -199,96 +184,155 @@ fun FocusContent(
 ) {
     val context = LocalContext.current
     val haptics = remember { runCatching { Haptics(context) }.getOrNull() }
-    val scope = rememberCoroutineScope()
 
-    // Frame clock while counting; read through lambdas so only what draws it updates.
-    val now = remember { mutableLongStateOf(clock()) }
-    LaunchedEffect(session.running) {
-        now.longValue = clock()
-        while (session.running && SkyMotion.enabled) {
-            withInfiniteAnimationFrameNanos { now.longValue = clock() }
+    // Smooth values for the drawing: written every frame, read only inside
+    // Canvas draw lambdas, so the ring is fluid without recomposing anything.
+    val ringProgress = remember { mutableFloatStateOf(session.progress(clock())) }
+    val beat = remember { mutableFloatStateOf(0f) }
+
+    // Values the composition reads: each changes at most once a second.
+    var phase by remember { mutableStateOf(session.phase(clock())) }
+    var timeText by remember { mutableStateOf("") }
+    var cheer by remember { mutableIntStateOf(0) }
+    var wave by remember { mutableIntStateOf(0) }
+    var dialling by remember { mutableStateOf(false) }
+    var lastSecond by remember { mutableIntStateOf(-1) }
+
+    val live by rememberUpdatedState(session)
+    val dayNow by rememberUpdatedState(dayProgress)
+    val refNow by rememberUpdatedState(reference)
+
+    LaunchedEffect(Unit) {
+        var last = 0L
+        while (true) {
+            withInfiniteAnimationFrameNanos { frame ->
+                val dt = if (last == 0L) 0.016f else ((frame - last) / 1e9f).coerceIn(0f, 0.05f)
+                last = frame
+                beat.floatValue += dt
+                val s = live.value
+                val t = clock()
+                val target = if (refNow.value) 0.111f else s.progress(t)
+                // Ease toward the true progress: the arc never jumps, even when
+                // the session is paused, reset or dialled to a new length.
+                val p = ringProgress.floatValue
+                ringProgress.floatValue = p + (target - p) * (1f - kotlin.math.exp(-9f * dt))
+
+                val ph = s.phase(t)
+                if (ph != phase) phase = ph
+                val secs = if (s.mode == FocusMode.Timer) ceil(s.remaining(t) / 1000.0).toLong()
+                else floor(s.elapsed(t) / 1000.0).toLong()
+                val txt = clockText(secs * 1000L, forceHours = s.mode == FocusMode.Timer && s.targetMs >= 3_600_000L)
+                if (txt != timeText) timeText = txt
+                lastSecond = secs.toInt()
+
+                val c = when (ph) {
+                    FocusPhase.Finished -> 5
+                    FocusPhase.Idle -> (dayNow.value * 5).roundToInt()
+                    else -> ceil(target * 5f).toInt().coerceIn(if (ph == FocusPhase.Running) 1 else 0, 5)
+                }
+                if (c != cheer) cheer = c
+                val w = floor(target * 4f).toInt()
+                if (w != wave && ph == FocusPhase.Running) wave = w
+            }
+            if (!SkyMotion.enabled) break
         }
     }
-    val phase by remember(session) { derivedStateOf { session.phase(now.longValue) } }
-    val progress: () -> Float = { session.progress(now.longValue) }
-    val wholeSeconds by remember(session) {
-        derivedStateOf {
-            if (session.mode == FocusMode.Timer) ceil(session.remaining(now.longValue) / 1000.0).toLong()
-            else floor(session.elapsed(now.longValue) / 1000.0).toLong()
+
+    // Ticking down the last ten seconds, and a flourish at zero.
+    LaunchedEffect(lastSecond, phase, session.mode) {
+        if (phase == FocusPhase.Running && session.mode == FocusMode.Timer) {
+            when (lastSecond) {
+                in 1..3 -> haptics?.click()
+                in 4..10 -> haptics?.tick()
+            }
         }
     }
 
-    // The timer reaching zero
     LaunchedEffect(session) {
         if (session.mode == FocusMode.Timer && session.running) {
-            val left = session.remaining(clock())
-            delay(left)
+            delay(session.remaining(clock()))
             onChange { it.finish(clock()) }
             haptics?.success()
         }
     }
 
-    // Keep the screen on while counting
     val view = LocalView.current
     DisposableEffect(session.running) {
         view.keepScreenOn = session.running
         onDispose { view.keepScreenOn = false }
     }
 
-    // Audience: how many are cheering (0..5) and a wave at each quarter.
-    // Progress is read in 5% steps so this recomposes rarely, not every frame.
-    val p by remember(session) { derivedStateOf { floor(session.progress(now.longValue) * 20f) / 20f } }
-    val cheer = when (phase) {
-        FocusPhase.Finished -> 5
-        FocusPhase.Idle -> (dayProgress * 5).roundToInt()
-        else -> ceil(p * 5f).toInt().coerceIn(if (phase == FocusPhase.Running) 1 else 0, 5)
-    }
-    val wave by remember(session) { derivedStateOf { floor(session.progress(now.longValue) * 4f).toInt() } }
     val stagePhase = when (phase) {
         FocusPhase.Idle -> StagePhase.Idle
         FocusPhase.Running -> StagePhase.Running
         FocusPhase.Paused -> StagePhase.Paused
         FocusPhase.Finished -> StagePhase.Finished
     }
-    val callout = if (reference) "Almost there!" else if (session.mode == FocusMode.Stopwatch && phase == FocusPhase.Running && p >= 1f) "Goal reached!" else calloutFor(stagePhase, p)
+    val shown = ringProgress.floatValue
+    val callout = when {
+        reference -> "Almost there!"
+        session.mode == FocusMode.Stopwatch && phase == FocusPhase.Running && shown >= 1f -> "Goal reached!"
+        else -> calloutFor(stagePhase, shown)
+    }
 
     var showDurations by remember { mutableStateOf(false) }
     var showPicker by remember { mutableStateOf(false) }
+    val canSet = session.mode == FocusMode.Timer && phase == FocusPhase.Idle
 
     SkyScaffold(res = R.drawable.sky_focus, fit = SkyFit.Cover) {
-        // Petals drifting down the sky, as in the mockup
-        if (SkyMotion.enabled) com.dhruv.focusguard.guard.overlay.FallingPetals()
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            val ky = (maxHeight.value / (1536f * com.dhruv.focusguard.ui.sky.MP)).coerceAtLeast(1f)
-            fun y(v: Number) = v.toFloat() * ky
+        if (SkyMotion.enabled) FallingPetals()
+        Column(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
+            // ── Top row ────────────────────────────────────────────
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BackButton(onBack)
+                Spacer(Modifier.weight(1f))
+                DateChip(dateMillis)
+            }
 
-            // ── Top bar ────────────────────────────────────────────
-            BackButton(onBack, Modifier.centerAt(88, y(124)))
-            DateChip(dateMillis, Modifier.centerAt(857, y(125.5f)))
+            Spacer(Modifier.height(6.dp))
 
-            // ── The task ───────────────────────────────────────────
             TaskBanner(
                 task = task,
                 mode = session.mode,
                 onClick = {
                     if (task != null) onOpenTask(task)
-                    else if (phase == FocusPhase.Idle && pickable.isNotEmpty()) showPicker = true
+                    else if (pickable.isNotEmpty()) showPicker = true
                 },
-                modifier = Modifier.centerAt(512.5f, y(250))
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
 
+            Spacer(Modifier.weight(0.6f))
+
             // ── The ring ───────────────────────────────────────────
-            TimerRing(
-                session = session,
-                phase = phase,
-                progress = progress,
-                seconds = wholeSeconds,
-                reference = reference,
-                haptics = haptics,
-                onSetTarget = { ms -> onChange { it.withTarget(ms) } },
-                onTapTime = { if (session.mode == FocusMode.Timer && phase == FocusPhase.Idle) showDurations = true },
-                modifier = Modifier.centerAt(512, y(622))
-            )
+            BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                val ringSize = minOf(maxWidth - 72.dp, 290.dp)
+                TimerRing(
+                    session = session,
+                    phase = phase,
+                    progress = ringProgress,
+                    beat = beat,
+                    timeText = if (reference) "1:30:00" else timeText,
+                    canSet = canSet,
+                    dialling = dialling,
+                    onDialling = { dialling = it },
+                    haptics = haptics,
+                    onSetTarget = { ms -> onChange { it.withTarget(ms) } },
+                    onTapTime = { if (canSet) showDurations = true },
+                    modifier = Modifier.size(ringSize)
+                )
+            }
+
+            Spacer(Modifier.weight(0.45f))
 
             // ── Controls ───────────────────────────────────────────
             PrimaryPill(
@@ -305,29 +349,28 @@ fun FocusContent(
                         } else onChange { it.reset().start(t) }
                     }
                 },
-                modifier = Modifier.centerAt(511, y(955))
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
+            Spacer(Modifier.height(10.dp))
             ResetPill(
                 enabled = phase != FocusPhase.Idle,
                 onClick = { haptics?.tick(); onChange { it.reset() } },
-                modifier = Modifier.centerAt(512, y(1044))
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
-            // ── The audience, standing on their card ───────────────
-            val cardTop = y(1347)
+            Spacer(Modifier.weight(0.5f))
+
+            // ── The crowd ──────────────────────────────────────────
             AudienceStage(
                 phase = stagePhase,
                 cheer = cheer,
-                wave = if (phase == FocusPhase.Running || phase == FocusPhase.Paused) wave else 0,
+                wave = if (phase == FocusPhase.Running) wave else 0,
                 callout = callout,
                 haptics = haptics,
                 referenceFaces = reference,
-                modifier = Modifier.at(0, cardTop - (1347 - STAGE_TOP))
-            )
-            AudienceCard(
-                phase = stagePhase,
-                cheer = if (reference) 3 else cheer,
-                modifier = Modifier.at(60, cardTop)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(190.dp)
             )
         }
     }
@@ -351,9 +394,11 @@ fun FocusContent(
 // ── Pieces ─────────────────────────────────────────────────────────
 
 @Composable
-private fun BackButton(onClick: () -> Unit, modifier: Modifier) {
+private fun BackButton(onClick: () -> Unit) {
     Glass(
-        modifier = modifier.size(72.mp).clickable(role = Role.Button, onClickLabel = "Back", onClick = onClick),
+        modifier = Modifier
+            .size(38.dp)
+            .clickable(role = Role.Button, onClickLabel = "Back", onClick = onClick),
         shape = CircleShape,
         tint = Color.White.copy(alpha = 0.40f),
         rim = Color.White.copy(alpha = 0.85f),
@@ -361,124 +406,125 @@ private fun BackButton(onClick: () -> Unit, modifier: Modifier) {
     ) {
         Icon(
             Icons.Rounded.ArrowBackIosNew, contentDescription = "Back", tint = Color.White,
-            modifier = Modifier.align(Alignment.Center).padding(end = 2.mp).size(26.mp)
+            modifier = Modifier.align(Alignment.Center).padding(start = 3.dp).size(15.dp)
         )
     }
 }
 
 @Composable
-private fun DateChip(dateMillis: Long, modifier: Modifier) {
+private fun DateChip(dateMillis: Long) {
     Glass(
-        modifier = modifier.size(230.mp, 55.mp),
+        modifier = Modifier.height(32.dp),
         shape = RoundedCornerShape(50),
         tint = Color.White.copy(alpha = 0.55f),
         rim = Color.White.copy(alpha = 0.8f),
         elevation = 2.dp
     ) {
-        Box(Modifier.fillMaxSize()) {
-            Icon(Icons.Outlined.CalendarToday, null, tint = Sky.GlassChipInk, modifier = Modifier.at(23, 13).size(28.mp))
-            Text(longDate(dateMillis), style = gs(20.7f, color = Sky.GlassChipInk), modifier = Modifier.baselineAt(63, 33.5f))
-            Icon(Icons.Rounded.KeyboardArrowDown, null, tint = Color(0xFF8A90C4), modifier = Modifier.at(196, 14).size(27.mp))
+        Row(
+            Modifier.padding(horizontal = 12.dp).fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Outlined.CalendarToday, null, tint = Sky.GlassChipInk, modifier = Modifier.size(13.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(longDate(dateMillis), fontFamily = GSans, fontSize = 12.sp, color = Sky.GlassChipInk)
         }
     }
 }
 
 @Composable
 private fun TaskBanner(task: Task?, mode: FocusMode, onClick: () -> Unit, modifier: Modifier) {
-    val kind = task?.let { kindOf(it) } ?: TaskKind.General
+    val kind = task?.let { kindOf(it) }
     Glass(
         modifier = modifier
-            .size(921.mp, 136.mp)
+            .fillMaxWidth()
+            .height(62.dp)
             .clickable(role = Role.Button, onClick = onClick),
-        shape = RoundedCornerShape(48.mp),
+        shape = RoundedCornerShape(22.dp),
         tint = Color.White.copy(alpha = 0.58f),
         rim = Color.White.copy(alpha = 0.85f),
         elevation = 3.dp
     ) {
-        Box(Modifier.fillMaxSize()) {
-            // origin = mockup (52, 182)
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Box(
-                Modifier.centerAt(131 - 52, 246 - 182).size(82.mp).clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(Color(0xFFE6E1FE), Color(0xFFD7CFFB))))
+                Modifier.size(38.dp).clip(CircleShape)
+                    .background(Brush.linearGradient(listOf(Color(0xFFE6E1FE), Color(0xFFD7CFFB)))),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    if (task == null) Icons.Outlined.Timer else kind.icon,
-                    null, tint = Color(0xFF5D50C5), modifier = Modifier.align(Alignment.Center).size(40.mp)
+                Icon(kind?.icon ?: Icons.Outlined.Timer, null, tint = Color(0xFF5D50C5), modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    task?.title ?: if (mode == FocusMode.Timer) "Free focus" else "Stopwatch",
+                    fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 15.sp, color = Color(0xFF071859),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    task?.let { subtitleOf(it) } ?: "Tap to pick a task",
+                    fontFamily = GSans, fontSize = 12.sp, color = Color(0xFF6B70A8),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
             }
-            val title = task?.title ?: if (mode == FocusMode.Timer) "Free focus" else "Stopwatch"
-            val sub = task?.let { subtitleOf(it) } ?: "Tap to pick a task"
-            Text(
-                title, style = gs(26.1f, FontWeight.Medium, Color(0xFF071859)), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.baselineAt(204 - 52, 240.3f - 182).width((if (task?.isHighPriority == true) 500 else 650).mp)
-            )
-            Text(
-                sub, style = gs(21.6f, color = Color(0xFF6B70A8)), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.baselineAt(204 - 52, 276.3f - 182).width(650.mp)
-            )
             if (task?.isHighPriority == true) {
-                PriorityChip(Modifier.at(715 - 52, 215 - 182))
+                Spacer(Modifier.width(8.dp))
+                PriorityChip()
             }
-            Icon(Icons.Rounded.ChevronRight, null, tint = Color(0xFF8286B5), modifier = Modifier.centerAt(909 - 52, 249 - 182).size(38.mp))
+            Icon(Icons.Rounded.ChevronRight, null, tint = Color(0xFF8286B5), modifier = Modifier.size(18.dp))
         }
     }
 }
 
 @Composable
-fun PriorityChip(modifier: Modifier = Modifier, height: Number = 40, textSize: Float = 18.4f) {
+fun PriorityChip(modifier: Modifier = Modifier) {
     Row(
         modifier
-            .height(height.mp)
+            .height(22.dp)
             .clip(RoundedCornerShape(50))
             .background(Sky.RedChip)
-            .padding(start = 14.mp, end = 18.mp),
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        com.dhruv.focusguard.ui.sky.Flame(Modifier.size(20.mp, 25.mp))
-        Spacer(Modifier.width(10.mp))
-        Text("High priority", style = gs(textSize, FontWeight.Medium, Sky.Red))
+        com.dhruv.focusguard.ui.sky.Flame(Modifier.size(9.dp, 11.dp))
+        Spacer(Modifier.width(4.dp))
+        Text("High", fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 11.sp, color = Sky.Red)
     }
 }
 
 /**
- * The glass ring: track, progress arc with its white knob, and the time.
- * While the timer is not started, drag round the ring to set its length
- * (one lap = an hour), or tap the time for presets.
+ * The glass ring. The arc, its knob and the glow are painted straight from
+ * [progress], which a frame loop writes — so it turns smoothly whatever else
+ * the screen is doing. While the timer is idle, dragging round the ring sets
+ * its length (one lap is an hour) with a tick per minute.
  */
 @Composable
 private fun TimerRing(
     session: FocusSession,
     phase: FocusPhase,
-    progress: () -> Float,
-    seconds: Long,
-    reference: Boolean,
+    progress: MutableFloatState,
+    beat: MutableFloatState,
+    timeText: String,
+    canSet: Boolean,
+    dialling: Boolean,
+    onDialling: (Boolean) -> Unit,
     haptics: Haptics?,
     onSetTarget: (Long) -> Unit,
     onTapTime: () -> Unit,
     modifier: Modifier
 ) {
-    // Group box: mockup (172, 282) .. (852, 962), ring centre at (340, 340)
-    val canSet = session.mode == FocusMode.Timer && phase == FocusPhase.Idle
-    var dragMinutes by remember { mutableStateOf<Int?>(null) }
-    val dragArc by animateFloatAsState(
-        targetValue = dragMinutes?.let { ((it % 60).takeIf { m -> m != 0 } ?: 60) / 60f } ?: 0f,
-        animationSpec = if (dragMinutes != null) spring(stiffness = 900f) else tween(450, easing = FastOutSlowInEasing),
-        label = "dragArc"
-    )
-    val glowT: State<Float> = if (SkyMotion.enabled) {
-        val pulse = rememberInfiniteTransition(label = "ring")
-        pulse.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "glow")
-    } else remember { mutableStateOf(0f) }
     val pop = remember { Animatable(1f) }
     LaunchedEffect(phase) {
         if (phase == FocusPhase.Running || phase == FocusPhase.Finished) {
-            pop.animateTo(1.035f, tween(140)); pop.animateTo(1f, spring(0.35f, 300f))
+            pop.animateTo(1.03f, tween(140)); pop.animateTo(1f, spring(0.35f, 300f))
         }
     }
+    val density = LocalDensity.current
 
-    Box(modifier.size(680.mp).scale(pop.value)) {
+    Box(modifier.scale(pop.value), contentAlignment = Alignment.Center) {
         Glass(
-            modifier = Modifier.centerAt(340, 340).size(532.mp),
+            modifier = Modifier.fillMaxSize().padding(14.dp),
             shape = CircleShape,
             tint = Color.White.copy(alpha = 0.42f),
             rim = Color.White.copy(alpha = 0.95f),
@@ -492,18 +538,19 @@ private fun TimerRing(
                     awaitEachGesture {
                         val down = awaitFirstDown()
                         val c = Offset(size.width / 2f, size.height / 2f)
-                        val r = (down.position - c).getDistance() / (com.dhruv.focusguard.ui.sky.MP * density)
-                        if (r < 190f || r > 300f) return@awaitEachGesture // only the ring itself
+                        val rr = (down.position - c).getDistance() / (size.minDimension / 2f)
+                        if (rr < 0.60f) return@awaitEachGesture      // the middle is for tapping
                         fun angle(pos: Offset): Float {
                             val d = pos - c
                             var a = Math.toDegrees(atan2(d.y.toDouble(), d.x.toDouble())).toFloat() + 90f
                             if (a < 0) a += 360f
                             return a
                         }
+                        onDialling(true)
                         var lastA = angle(down.position)
-                        val startMin = (session.targetMs / 60_000L).toInt()
-                        var total = startMin.toFloat()
-                        dragMinutes = startMin
+                        var total = (session.targetMs / 60_000L).toFloat()
+                        var lastWhole = total.roundToInt()
+                        haptics?.click()
                         while (true) {
                             val ev = awaitPointerEvent()
                             val ch = ev.changes.firstOrNull { it.id == down.id } ?: break
@@ -513,152 +560,138 @@ private fun TimerRing(
                             if (d > 180f) d -= 360f
                             if (d < -180f) d += 360f
                             lastA = a
-                            total = (total + d / 6f).coerceIn(1f, 240f)  // 6° per minute
+                            total = (total + d / 6f).coerceIn(1f, 240f)   // 6° a minute
                             val m = total.roundToInt()
-                            if (m != dragMinutes) {
+                            if (m != lastWhole) {
+                                lastWhole = m
                                 if (m % 5 == 0) haptics?.click() else haptics?.tick()
-                                dragMinutes = m
                                 onSetTarget(m * 60_000L)
                             }
                             ch.consume()
                         }
-                        dragMinutes = null
+                        onDialling(false)
+                        haptics?.thud()
                     }
                 }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() }, indication = null,
+                    enabled = canSet, onClickLabel = "Choose how long", onClick = onTapTime
+                )
         ) {
-            val c = Offset(size.width / 2f, size.height / 2f)
-            val u = mpx(1)
+            val c = center
+            val outer = size.minDimension / 2f
+            val band = 13.dp.toPx()
+            val rr = outer - band / 2f - 1.dp.toPx()
+            val t = beat.floatValue
+            val shown = progress.floatValue.coerceIn(0f, 1f)
+
             // Light around the ring, breathing while it runs
-            val breathe = if (phase == FocusPhase.Running) 0.08f * sin(glowT.value * 6.283f) else 0f
+            val breathe = if (phase == FocusPhase.Running) 0.07f * sin(t * 2.2f) else 0f
             drawCircle(
                 Brush.radialGradient(
-                    0f to Color.Transparent, 0.70f to Color.Transparent,
-                    0.78f to Color.White.copy(alpha = 0.55f + breathe), 1f to Color.Transparent,
-                    center = c, radius = 340 * u
+                    0f to Color.Transparent, 0.74f to Color.Transparent,
+                    0.86f to Color.White.copy(alpha = 0.50f + breathe), 1f to Color.Transparent,
+                    center = c, radius = outer
                 ),
-                radius = 340 * u, center = c
+                radius = outer, center = c
             )
-            // Inner disk, whiter than the outer glass
-            drawCircle(Sky.Disk.copy(alpha = 0.78f), radius = 229 * u, center = c)
-            drawCircle(Color.White.copy(alpha = 0.7f), radius = 229 * u, center = c, style = Stroke(2.2f * u))
+            // Inner disk
+            drawCircle(Sky.Disk.copy(alpha = 0.80f), radius = rr - band / 2f - 2.dp.toPx(), center = c)
 
-            val band = 25 * u
-            val rr = 242.5f * u
+            // Track
             val arcTopLeft = Offset(c.x - rr, c.y - rr)
             val arcSize = Size(rr * 2, rr * 2)
-            // Track: lavender on the left, pink on the right
-            rotate(-90f, c) {
-                drawArc(
-                    Brush.sweepGradient(
-                        0f to Color(0xFFE7D4FB), 0.25f to Color(0xFFF6CEF3), 0.5f to Color(0xFFF3DDF8),
-                        0.75f to Color(0xFFDBD2F9), 1f to Color(0xFFE7D4FB), center = c
-                    ),
-                    0f, 360f, false, topLeft = arcTopLeft, size = arcSize, style = Stroke(band)
-                )
-            }
-            drawCircle(Color.White.copy(alpha = 0.85f), radius = 259 * u, center = c, style = Stroke(5 * u))
+            drawArc(
+                Color(0xFFE8DCFB), 0f, 360f, false,
+                topLeft = arcTopLeft, size = arcSize, style = Stroke(band)
+            )
+            drawCircle(Color.White.copy(alpha = 0.8f), radius = rr + band / 2f, center = c, style = Stroke(2.dp.toPx()))
 
-            // Progress (or the length being dialled in)
-            val shown = if (reference) 0.111f else if (dragMinutes != null || dragArc > 0.001f) dragArc else progress()
-            val sweep = 360f * shown.coerceIn(0f, 1f)
-            if (sweep > 0.5f) {
+            // Progress. The gradient is fixed to the dial, not to the sweep, so
+            // the colours stay put as the arc grows instead of crawling.
+            val sweep = 360f * shown
+            if (sweep > 0.4f) {
                 rotate(-90f, c) {
                     drawArc(
-                        Brush.sweepGradient(0f to Sky.ArcFrom, (shown.coerceAtLeast(0.05f)) to Sky.ArcTo, 1f to Sky.ArcTo, center = c),
-                        0f, sweep, false, topLeft = arcTopLeft, size = arcSize, style = Stroke(band, cap = StrokeCap.Round)
+                        Brush.sweepGradient(
+                            0f to Sky.ArcFrom, 0.33f to Sky.ArcTo, 0.66f to Sky.TrailPink, 1f to Sky.ArcFrom,
+                            center = c
+                        ),
+                        0f, sweep, false,
+                        topLeft = arcTopLeft, size = arcSize,
+                        style = Stroke(band, cap = StrokeCap.Round)
                     )
                 }
             }
             val head = clockPoint(c, rr, sweep)
-            // Knob: glow, shadow, body
             drawCircle(
-                Brush.radialGradient(listOf(Color.White.copy(alpha = 0.9f), Color(0xFFF2C6F7).copy(alpha = 0.5f), Color.Transparent), center = head, radius = 34 * u),
-                radius = 34 * u, center = head
+                Brush.radialGradient(listOf(Color.White.copy(alpha = 0.9f), Color(0xFFF2C6F7).copy(alpha = 0.45f), Color.Transparent), center = head, radius = band * 1.6f),
+                radius = band * 1.6f, center = head
             )
-            drawCircle(Color(0xFFC79BEF).copy(alpha = 0.35f), radius = 17.5f * u, center = head + Offset(0f, 2 * u))
-            drawCircle(Color.White, radius = 16.5f * u, center = head)
+            drawCircle(Color(0xFFC79BEF).copy(alpha = 0.35f), radius = band * 0.62f, center = head + Offset(0f, 1.5f.dp.toPx()))
+            drawCircle(Color.White, radius = band * 0.58f, center = head)
             if (phase == FocusPhase.Running) {
-                // A sparkle riding just behind the knob
-                val tw = 0.5f + 0.5f * sin(glowT.value * 12.566f)
-                sparkle(clockPoint(c, rr, (sweep - 9f).coerceAtLeast(0f)), 7 * u * (0.6f + tw * 0.6f), Color.White.copy(alpha = 0.9f))
+                val tw = 0.5f + 0.5f * sin(t * 6f)
+                sparkle(clockPoint(c, rr, (sweep - 8f).coerceAtLeast(0f)), band * 0.34f * (0.6f + tw * 0.7f), Color.White.copy(alpha = 0.9f))
+            }
+            if (dialling) {
+                // Minute ticks while you dial it in
+                for (i in 0 until 60) {
+                    val p = clockPoint(c, rr - band * 0.95f, i * 6f)
+                    drawCircle(Color.White.copy(alpha = if (i % 5 == 0) 0.85f else 0.45f), radius = if (i % 5 == 0) 1.8f.dp.toPx() else 1.dp.toPx(), center = p)
+                }
             }
         }
 
-        // Contents (relative to the group origin 172, 282)
-        val inkStopwatch = Color(0xFF414C88)
-        Icon(Icons.Outlined.Timer, null, tint = inkStopwatch, modifier = Modifier.centerAt(512 - 172, 477 - 282).size(38.mp))
-        val label = when {
-            session.mode == FocusMode.Stopwatch -> if (phase == FocusPhase.Idle) "Stopwatch" else "Time focused"
-            phase == FocusPhase.Finished -> "Time's up"
-            phase == FocusPhase.Paused -> "Paused"
-            else -> "Focus time"
-        }
-        Text(label, style = gs(25.7f, color = Sky.FocusLabel), modifier = Modifier.baselineAt(512 - 172, 535.5f - 282, centered = true))
-
-        val text = if (reference) "1:30:00" else clockText(seconds * 1000L, forceHours = session.targetMs >= 3_600_000L && session.mode == FocusMode.Timer)
-        RollingClock(
-            text = text,
-            modifier = Modifier
-                .baselineAt(512 - 172, 643.3f - 282, centered = true)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() }, indication = null,
-                    enabled = canSet, onClick = onTapTime
-                )
-        )
-
-        val (line1, line2) = when (phase) {
-            FocusPhase.Idle -> if (canSet) "Drag the ring to set" to "or tap the time" else "Stay focused" to "You got this!"
-            FocusPhase.Paused -> "Take a breath" to "Resume when ready"
-            FocusPhase.Finished -> "Well done" to "You showed up!"
-            FocusPhase.Running -> "Stay focused" to "You got this!"
-        }
-        Row(Modifier.baselineAt(512 - 172, 715.3f - 282, centered = true), verticalAlignment = Alignment.CenterVertically) {
-            TargetIcon(Modifier.size(28.mp))
-            Spacer(Modifier.width(15.mp))
-            Text(line1, style = gs(21.6f, color = Sky.StayInk))
-        }
-        Text(line2, style = gs(23.6f, color = Color(0xFF6D74A5)), modifier = Modifier.baselineAt(512 - 172, 758.6f - 282, centered = true))
-    }
-}
-
-/** The time, each digit rolling up as it changes. */
-@Composable
-private fun RollingClock(text: String, modifier: Modifier = Modifier) {
-    val style = gs(86.7f, FontWeight.SemiBold, Sky.TimerInk).copy(fontFeatureSettings = "tnum")
-    Row(modifier) {
-        text.forEachIndexed { i, ch ->
-            if (ch.isDigit()) {
-                AnimatedContent(
-                    targetState = ch,
-                    transitionSpec = {
-                        (slideInVertically(tween(260)) { it / 2 } + fadeIn(tween(200))) togetherWith
-                            (slideOutVertically(tween(220)) { -it / 2 } + fadeOut(tween(160)))
-                    },
-                    label = "digit$i"
-                ) { d -> Text(d.toString(), style = style) }
-            } else {
-                Text(ch.toString(), style = style)
+        // What it says in the middle
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Outlined.Timer, null, tint = Color(0xFF414C88), modifier = Modifier.size(18.dp))
+            Spacer(Modifier.height(2.dp))
+            Text(
+                when {
+                    session.mode == FocusMode.Stopwatch -> if (phase == FocusPhase.Idle) "Stopwatch" else "Time focused"
+                    phase == FocusPhase.Finished -> "Time's up"
+                    phase == FocusPhase.Paused -> "Paused"
+                    dialling -> "Set to"
+                    else -> "Focus time"
+                },
+                fontFamily = GSans, fontSize = 13.sp, color = Sky.FocusLabel
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                timeText,
+                fontFamily = GSans, fontWeight = FontWeight.SemiBold, fontSize = 40.sp, color = Sky.TimerInk,
+                fontFeatureSettings = "tnum"
+            )
+            Spacer(Modifier.height(4.dp))
+            val (line1, line2) = when (phase) {
+                FocusPhase.Idle -> if (canSet) "Drag the ring" to "or tap to choose" else "Ready" to "Press start"
+                FocusPhase.Paused -> "Take a breath" to "Resume when ready"
+                FocusPhase.Finished -> "Well done" to "You showed up!"
+                FocusPhase.Running -> "Stay focused" to "You got this!"
             }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TargetIcon(Modifier.size(13.dp))
+                Spacer(Modifier.width(5.dp))
+                Text(line1, fontFamily = GSans, fontSize = 12.sp, color = Sky.StayInk)
+            }
+            Text(line2, fontFamily = GSans, fontSize = 12.sp, color = Color(0xFF6D74A5))
         }
     }
 }
 
-/** A dart in a bullseye, like the mockup's "Stay focused" mark. */
+/** A dart in a bullseye. */
 @Composable
 private fun TargetIcon(modifier: Modifier) {
     Canvas(modifier) {
         val c = Offset(size.width * 0.46f, size.height * 0.54f)
         val r = size.minDimension * 0.42f
         val ink = Sky.Target
-        drawCircle(ink, radius = r, center = c, style = Stroke(size.minDimension * 0.10f))
-        drawCircle(ink, radius = r * 0.55f, center = c, style = Stroke(size.minDimension * 0.10f))
-        drawCircle(ink, radius = r * 0.18f, center = c)
-        val tip = c
+        drawCircle(ink, radius = r, center = c, style = Stroke(size.minDimension * 0.11f))
+        drawCircle(ink, radius = r * 0.5f, center = c, style = Stroke(size.minDimension * 0.11f))
         val tail = Offset(size.width * 0.95f, size.height * 0.08f)
-        drawLine(Color.White, tip, tail, strokeWidth = size.minDimension * 0.22f, cap = StrokeCap.Round)
-        drawLine(ink, tip, tail, strokeWidth = size.minDimension * 0.10f, cap = StrokeCap.Round)
-        drawLine(ink, tail, Offset(tail.x - size.width * 0.20f, tail.y), strokeWidth = size.minDimension * 0.09f, cap = StrokeCap.Round)
-        drawLine(ink, tail, Offset(tail.x, tail.y + size.height * 0.20f), strokeWidth = size.minDimension * 0.09f, cap = StrokeCap.Round)
+        drawLine(Color.White, c, tail, strokeWidth = size.minDimension * 0.26f, cap = StrokeCap.Round)
+        drawLine(ink, c, tail, strokeWidth = size.minDimension * 0.12f, cap = StrokeCap.Round)
     }
 }
 
@@ -675,37 +708,34 @@ private fun PrimaryPill(phase: FocusPhase, hasTask: Boolean, onClick: () -> Unit
     }
     Box(
         modifier
-            .size(298.mp, 76.mp)
+            .height(50.dp)
+            .width(172.dp)
             .scale(s)
             .drawBehind {
-                // a soft purple glow under the button
-                for (i in 1..6) {
-                    val g = i * 2.5f.mp.toPx()
+                for (i in 1..5) {
+                    val g = i * 2.dp.toPx()
                     drawRoundRect(
-                        Color(0xFF9B7CF6).copy(alpha = 0.035f),
-                        topLeft = Offset(-g * 0.6f, 4.mp.toPx() - g * 0.3f + g * 0.4f),
-                        size = Size(size.width + g * 1.2f, size.height + g * 0.6f),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2 + g)
+                        Color(0xFF9B7CF6).copy(alpha = 0.04f),
+                        topLeft = Offset(-g * 0.5f, 3.dp.toPx() + g * 0.2f),
+                        size = Size(size.width + g, size.height + g * 0.5f),
+                        cornerRadius = CornerRadius(size.height / 2 + g)
                     )
                 }
             }
             .clip(RoundedCornerShape(50))
             .background(Brush.horizontalGradient(*Sky.PauseStops))
             .drawBehind {
-                drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.28f), Color.Transparent), endY = size.height * 0.55f))
-                drawRoundRect(
-                    Color.White.copy(alpha = 0.55f), style = Stroke(2.mp.toPx()),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2)
-                )
+                drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.26f), Color.Transparent), endY = size.height * 0.55f))
+                drawRoundRect(Color.White.copy(alpha = 0.5f), style = Stroke(1.2f.dp.toPx()), cornerRadius = CornerRadius(size.height / 2))
             }
             .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         AnimatedContent(targetState = icon to label, label = "primary") { (ic, lb) ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(ic, null, tint = Color.White, modifier = Modifier.size(38.mp))
-                Spacer(Modifier.width(9.mp))
-                Text(lb, style = gs(25.3f, FontWeight.Medium, Color.White))
+                Icon(ic, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(lb, fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 15.sp, color = Color.White)
             }
         }
     }
@@ -715,8 +745,9 @@ private fun PrimaryPill(phase: FocusPhase, hasTask: Boolean, onClick: () -> Unit
 private fun ResetPill(enabled: Boolean, onClick: () -> Unit, modifier: Modifier) {
     Glass(
         modifier = modifier
-            .size(170.mp, 56.mp)
-            .graphicsLayer { alpha = if (enabled) 1f else 0.75f }
+            .height(36.dp)
+            .width(104.dp)
+            .graphicsLayer { alpha = if (enabled) 1f else 0.6f }
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(50),
         tint = Color.White.copy(alpha = 0.40f),
@@ -724,47 +755,9 @@ private fun ResetPill(enabled: Boolean, onClick: () -> Unit, modifier: Modifier)
         elevation = 0.dp
     ) {
         Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.RestartAlt, null, tint = Color(0xFF777CB1), modifier = Modifier.size(28.mp))
-            Spacer(Modifier.width(12.mp))
-            Text("Reset", style = gs(21.1f, FontWeight.Medium, Sky.ResetInk))
-        }
-    }
-}
-
-@Composable
-private fun AudienceCard(phase: StagePhase, cheer: Int, modifier: Modifier) {
-    val fill by animateFloatAsState(cheer / 5f, tween(700, easing = FastOutSlowInEasing), label = "aud")
-    val sub = when (phase) {
-        StagePhase.Idle -> "They're waiting for you"
-        StagePhase.Running -> "They’re cheering for you!"
-        StagePhase.Paused -> "They're holding their breath"
-        StagePhase.Finished -> "They're so proud of you!"
-    }
-    Glass(
-        modifier = modifier.size(903.mp, 108.mp),
-        shape = RoundedCornerShape(46.mp),
-        tint = Color.White.copy(alpha = 0.50f),
-        rim = Color.White.copy(alpha = 0.85f),
-        elevation = 3.dp
-    ) {
-        Box(Modifier.fillMaxSize()) {
-            // origin = mockup (60, 1347)
-            Box(Modifier.centerAt(133 - 60, 1402 - 1347).size(66.mp).clip(CircleShape).background(Sky.AudTile)) {
-                Icon(Icons.Outlined.Groups, null, tint = Sky.AudIcon, modifier = Modifier.align(Alignment.Center).size(38.mp))
-            }
-            Text("Audience", style = gs(18.9f, FontWeight.Medium, Color(0xFF172268)), modifier = Modifier.baselineAt(189 - 60, 1395.6f - 1347))
-            Text(sub, style = gs(16.4f, color = Color(0xFF7472AA)), modifier = Modifier.baselineAt(189 - 60, 1421.2f - 1347))
-            Canvas(Modifier.at(616 - 60, 1395 - 1347).size(246.mp, 13.mp)) {
-                val r = androidx.compose.ui.geometry.CornerRadius(size.height / 2)
-                drawRoundRect(Sky.BarTrack, cornerRadius = r)
-                if (fill > 0f) {
-                    drawRoundRect(
-                        Brush.horizontalGradient(listOf(Color(0xFF8C8BFD), Color(0xFF9A93FD))),
-                        size = Size(size.width * fill.coerceIn(0.05f, 1f), size.height), cornerRadius = r
-                    )
-                }
-            }
-            Text("$cheer/5", style = gs(18.3f, color = Color(0xFF7F7AB5)), modifier = Modifier.baselineAt(883 - 60, 1406.6f - 1347))
+            Icon(Icons.Rounded.RestartAlt, null, tint = Color(0xFF777CB1), modifier = Modifier.size(15.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Reset", fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = Sky.ResetInk)
         }
     }
 }
@@ -776,44 +769,54 @@ private val PRESETS = listOf(5, 10, 15, 20, 25, 30, 45, 60, 90, 120)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DurationSheet(current: Long, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
-    var minutes by remember { mutableStateOf((current / 60_000L).toInt()) }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = Color(0xFFF7F3FC)) {
+    var minutes by remember { mutableIntStateOf((current / 60_000L).toInt()) }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color(0xFFF7F3FC)
+    ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
-            Text("Focus for", style = gs(40, FontWeight.Medium, Sky.Navy))
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+            Text("Focus for", fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 18.sp, color = Sky.Navy)
+            Spacer(Modifier.height(10.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 SheetRound("–") { minutes = (minutes - 1).coerceAtLeast(1) }
                 Text(
-                    com.dhruv.focusguard.ui.sky.durationText(minutes).ifEmpty { "0m" },
-                    style = gs(70, FontWeight.SemiBold, Sky.TimerInk),
-                    modifier = Modifier.padding(horizontal = 24.dp)
+                    durationText(minutes).ifEmpty { "0m" },
+                    fontFamily = GSans, fontWeight = FontWeight.SemiBold, fontSize = 34.sp, color = Sky.TimerInk,
+                    modifier = Modifier.padding(horizontal = 22.dp)
                 )
                 SheetRound("+") { minutes = (minutes + 1).coerceAtMost(240) }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
             PRESETS.chunked(5).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { m ->
                         val sel = m == minutes
                         Box(
-                            Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(50))
+                            Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(50))
                                 .background(if (sel) Color(0xFF9A90FB) else Color(0xFFE9E3FA))
                                 .clickable { minutes = m },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(com.dhruv.focusguard.ui.sky.durationText(m), style = gs(34, FontWeight.Medium, if (sel) Color.White else Color(0xFF5149A9)))
+                            Text(durationText(m), fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = if (sel) Color.White else Color(0xFF5149A9))
                         }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Box(
-                Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(50))
+                Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(50))
                     .background(Brush.horizontalGradient(*Sky.PauseStops))
                     .clickable { onPick(minutes * 60_000L) },
                 contentAlignment = Alignment.Center
-            ) { Text("Set ${com.dhruv.focusguard.ui.sky.durationText(minutes)}", style = gs(40, FontWeight.Medium, Color.White)) }
+            ) {
+                Text("Set ${durationText(minutes)}", fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 15.sp, color = Color.White)
+            }
         }
     }
 }
@@ -821,9 +824,9 @@ private fun DurationSheet(current: Long, onPick: (Long) -> Unit, onDismiss: () -
 @Composable
 private fun SheetRound(label: String, onClick: () -> Unit) {
     Box(
-        Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFE9E3FA)).clickable(onClick = onClick),
+        Modifier.size(46.dp).clip(CircleShape).background(Color(0xFFE9E3FA)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
-    ) { Text(label, style = gs(56, FontWeight.Medium, Color(0xFF5149A9))) }
+    ) { Text(label, fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 22.sp, color = Color(0xFF5149A9)) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -831,18 +834,18 @@ private fun SheetRound(label: String, onClick: () -> Unit) {
 private fun TaskPickerSheet(tasks: List<Task>, onPick: (Task) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFFF7F3FC)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
-            Text("Focus on…", style = gs(40, FontWeight.Medium, Sky.Navy), modifier = Modifier.padding(bottom = 12.dp))
+            Text("Focus on…", fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 18.sp, color = Sky.Navy, modifier = Modifier.padding(bottom = 10.dp))
             tasks.take(8).forEach { t ->
                 val k = kindOf(t)
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { onPick(t) }.padding(vertical = 10.dp, horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(Modifier.size(36.dp).clip(CircleShape).background(k.tone.tile), contentAlignment = Alignment.Center) {
-                        Icon(k.icon, null, tint = k.tone.icon, modifier = Modifier.size(20.dp))
+                    Box(Modifier.size(34.dp).clip(CircleShape).background(k.tone.tile), contentAlignment = Alignment.Center) {
+                        Icon(k.icon, null, tint = k.tone.icon, modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.width(12.dp))
-                    Text(t.title, style = gs(38, FontWeight.Medium, Sky.Navy), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(t.title, fontFamily = GSans, fontWeight = FontWeight.Medium, fontSize = 15.sp, color = Sky.Navy, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
