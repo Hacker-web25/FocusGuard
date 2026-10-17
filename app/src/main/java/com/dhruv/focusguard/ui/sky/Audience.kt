@@ -172,7 +172,7 @@ fun AudienceStage(
     }
 
     fun shout(m: Member, words: List<String>) {
-        if (shouts.size > 2) return
+        if (shouts.isNotEmpty()) return      // one voice at a time, so they stay readable
         // Above the head, nudged away from the edges and from the note on the right.
         val x = if (m.main) 0.26f else m.fx.coerceIn(0.14f, 0.62f)
         shouts += Shout(words[Random.nextInt(words.size)], x, m.fy - m.fr * 2.1f, state.time, (Random.nextFloat() - 0.5f) * 14f)

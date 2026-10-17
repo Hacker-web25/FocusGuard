@@ -603,8 +603,12 @@ private fun TimerRing(
             val arcTopLeft = Offset(c.x - rr, c.y - rr)
             val arcSize = Size(rr * 2, rr * 2)
             drawArc(
-                Color(0xFFE8DCFB), 0f, 360f, false,
+                Color(0xFFEDE7F7), 0f, 360f, false,
                 topLeft = arcTopLeft, size = arcSize, style = Stroke(band)
+            )
+            drawArc(
+                Color(0xFFD9CFEC).copy(alpha = 0.55f), 0f, 360f, false,
+                topLeft = arcTopLeft, size = arcSize, style = Stroke(1.2f.dp.toPx())
             )
             drawCircle(Color.White.copy(alpha = 0.8f), radius = rr + band / 2f, center = c, style = Stroke(2.dp.toPx()))
 
@@ -615,7 +619,7 @@ private fun TimerRing(
                 rotate(-90f, c) {
                     drawArc(
                         Brush.sweepGradient(
-                            0f to Sky.ArcFrom, 0.33f to Sky.ArcTo, 0.66f to Sky.TrailPink, 1f to Sky.ArcFrom,
+                            0f to Color(0xFFBE8CFA), 0.33f to Color(0xFFD69CFB), 0.66f to Color(0xFFE9A8F2), 1f to Color(0xFFBE8CFA),
                             center = c
                         ),
                         0f, sweep, false,
