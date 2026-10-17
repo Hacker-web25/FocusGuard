@@ -134,7 +134,7 @@ fun SettingsScreen(viewModel: TaskViewModel, onOpenLimit: () -> Unit = {}) {
 
             Spacer(Modifier.height(20.dp))
             Text(
-                "FocusGuard 1.4 · Everything stays on this phone.",
+                "FocusGuard 1.5 · Everything stays on this phone.",
                 style = CalmText, fontSize = 12.sp, color = Calm.Faint, textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
